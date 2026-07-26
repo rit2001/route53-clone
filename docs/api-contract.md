@@ -3,6 +3,12 @@
 The system, authentication, Hosted Zone, and DNS record-set routes are
 implemented.
 
+Production resources:
+
+- API root: <https://route53-clone-production-eb00.up.railway.app>
+- Health: <https://route53-clone-production-eb00.up.railway.app/api/v1/health>
+- Swagger UI: <https://route53-clone-production-eb00.up.railway.app/docs>
+
 ## General conventions
 
 - Base path: `/api/v1`
@@ -130,7 +136,7 @@ AWS name servers.
 ### `GET /api/v1/hosted-zones`
 
 Implemented. Returns a paginated list owned by the current user. Record counts
-are calculated by an aggregate query and include system and future user-managed
+are calculated by an aggregate query and include system and user-managed
 record sets.
 
 Parameters:
@@ -395,13 +401,14 @@ publication, delegation, or resolution.
 
 ### `GET /api/v1/health`
 
-Implemented in Case 0. It is public and does not require the database.
+Implemented. It is public and does not require the database. The deployed
+production endpoint returns:
 
 ```json
 {
   "status": "healthy",
   "service": "route53-clone-api",
-  "environment": "development"
+  "environment": "production"
 }
 ```
 

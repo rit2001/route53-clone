@@ -4,6 +4,10 @@ The interface is inspired by the operating density and hierarchy of Route53, but
 uses original code, language, icons, and visual assets. It is an application
 console, not a marketing dashboard.
 
+The implemented interface is deployed at
+<https://route53-clone-three.vercel.app>. Sanitized production captures are in
+[`docs/screenshots`](screenshots/).
+
 ## Visual foundation
 
 - Dark global utility header with compact product identity and session controls
@@ -73,8 +77,8 @@ navigation and page heading. Zone details include the zone name. Record creation
 includes Hosted zones, the zone, Records, and Create record. Links remain blue;
 the current page is plain text with `aria-current`.
 
-The Case 5 `Breadcrumbs` component accepts data rather than deriving a hardcoded
-page list, so zone and record details can add nested items in Cases 6 and 7.
+The `Breadcrumbs` component accepts data rather than deriving a hardcoded page
+list, so zone and record details add nested items consistently.
 
 ## Page headers and placeholder surfaces
 
@@ -119,7 +123,7 @@ optional retry action; important form failures are never toast-only.
 
 ## Accessibility decisions
 
-Case 5 includes semantic header/main/aside/navigation landmarks, labelled
+The shell includes semantic header/main/aside/navigation landmarks, labelled
 navigation regions, breadcrumb navigation, `aria-current`, visible global focus
 styles, a skip link, field/error associations, native buttons for every action,
 keyboard-reachable menus, Escape dismissal, and reduced-motion overrides.
@@ -127,7 +131,7 @@ Component tests query by accessible roles and names to protect these contracts.
 
 ## Hosted Zones table
 
-Case 6 implements the primary hosted-zone page with a title, real result count,
+The primary hosted-zone page has a title, real result count,
 two-row toolbar, and bordered table. Columns are selection, hosted-zone name,
 type, record count, description, ID, and created time. Name, type, created, and
 updated are supported backend sort fields; visible sortable columns use buttons
@@ -182,7 +186,7 @@ immediately.
 
 ## Records table
 
-Case 7 implements `/route53/hosted-zones/{zoneId}/records`. It first resolves the
+`/route53/hosted-zones/{zoneId}/records` first resolves the
 Hosted Zone so the header can show its canonical name, public/private type, ID,
 current record count, ownership-safe breadcrumbs, and a direct link back to zone
 details. An inline notice says that persisted configuration does not resolve real
@@ -286,7 +290,7 @@ near the affected content; notifications are not the sole error channel.
 - A filtered empty state says no results matched and offers to clear filters.
 - Controls expose disabled and busy states during mutations.
 
-Cases 6 and 7 implement each state. Initial list loading keeps page context with
+Both operational workflows implement each state. Initial list loading keeps page context with
 compact table-shaped rows. Background fetches retain data. DNS list failures
 mention API connectivity and offer Retry. An empty private zone offers Create
 record; filtered emptiness offers Clear filters. Hosted Zone not-found responses
@@ -315,7 +319,7 @@ workflow without replacing the table with generic cards.
 
 ## Placeholder sections
 
-DNS health checks, traffic flow, resolver, domain registration, query logging,
-and real routing policies may appear only as clearly disabled or “Not included in
-this assignment” navigation placeholders after P0 workflows are complete. They
-must not resemble functional controls or displace core tasks.
+Traffic Policies, Health Checks, Resolver, and Profiles are non-functional
+navigation placeholders labelled `Coming soon`. They preserve the service-shell
+hierarchy without presenting fake controls. Domain registration, query logging,
+real routing policies, and other out-of-scope product surfaces are not exposed.

@@ -1,3 +1,4 @@
 # Hooks
 
-Shared React hooks will be added as frontend workflows are implemented.
+Feature-scoped hooks provide TanStack Query operations and URL-backed list state
+for Hosted Zones and DNS records.

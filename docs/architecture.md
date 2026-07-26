@@ -6,6 +6,13 @@ Route53 Clone is a learning-focused DNS management application. A browser client
 uses an original Route53-inspired interface to manage mocked hosted zones and DNS
 record sets. The system does not call AWS, publish DNS, or resolve real records.
 
+The system is complete and production-verified at:
+
+- Frontend: <https://route53-clone-three.vercel.app>
+- Backend: <https://route53-clone-production-eb00.up.railway.app>
+- Interactive API docs:
+  <https://route53-clone-production-eb00.up.railway.app/docs>
+
 The repository is a modular monolith with two deployable processes:
 
 - A Next.js frontend renders the user experience and coordinates client state.
@@ -27,7 +34,7 @@ flowchart LR
 The frontend owns rendering, accessibility, navigation, URL-derived list state,
 form interaction, and displaying API outcomes. TanStack Query owns server-state
 infrastructure. React Hook Form and Zod own form state and client-side validation.
-URL search parameters will own filtering, sorting, search, and pagination.
+URL search parameters own filtering, sorting, search, and pagination.
 React Context is reserved for the mocked authentication session; modal visibility
 and row selection remain local component state.
 
@@ -109,7 +116,7 @@ one deletion.
 
 The browser implements authentication as a narrowly scoped React Context. It
 uses the typed API client directly for authentication while TanStack Query
-remains available for domain server state in later workflows.
+owns Hosted Zone and DNS Record server state.
 
 ```mermaid
 flowchart TD
@@ -124,7 +131,7 @@ flowchart TD
 Only the raw token and expiry are stored under `route53_clone_session`; neither
 the password nor user profile is persisted. The provider first rejects locally
 expired data, then restores user state only after `/auth/me` succeeds. Backend
-authentication failures can notify the provider so future authenticated clients
+authentication failures notify the provider so all authenticated clients
 share the same clearing path. Logout clears the TanStack Query cache and local
 state even if the backend is unreachable.
 
@@ -263,12 +270,13 @@ supports value search without related-resource loading or per-record queries.
 
 ## Deployment
 
-Vercel hosts the Next.js frontend. Railway runs the FastAPI container and mounts a
-persistent volume at `/data`. The backend process must use exactly one Uvicorn
-worker because multiple independent processes can contend for SQLite writes and
-do not share in-process coordination. Railway supplies environment variables,
-including `DATABASE_URL=sqlite:////data/route53.db` and the deployed frontend
-origin.
+Vercel hosts the Next.js frontend at
+<https://route53-clone-three.vercel.app>. Railway runs the FastAPI container at
+<https://route53-clone-production-eb00.up.railway.app> and mounts a persistent
+volume at `/data`. The backend process uses exactly one Uvicorn worker because
+multiple independent processes can contend for SQLite writes and do not share
+in-process coordination. Railway supplies environment variables, including
+`DATABASE_URL=sqlite:////data/route53.db` and the exact deployed frontend origin.
 
 The backend image starts through `entrypoint.sh`. With fail-fast shell semantics,
 it runs `alembic upgrade head`, runs the idempotent `python -m app.seed`, and only
@@ -290,6 +298,12 @@ container testing.
 
 The local Compose volume is mounted at `/app/data`; it intentionally does not
 imitate or mount Railway's production `/data` volume.
+
+Production acceptance verified authentication, Hosted Zone CRUD, DNS Record
+CRUD, nested frontend-route refreshes, and exact-origin CORS. A Railway service
+restart preserved the demo user, active session, Hosted Zones, DNS records, and
+generated NS/SOA record sets; the idempotent seed completed without duplicating
+or resetting the existing demo user.
 
 ## SQLite trade-offs
 

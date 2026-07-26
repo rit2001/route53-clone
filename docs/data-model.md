@@ -1,7 +1,7 @@
 # Data model
 
-Case 1 implements the complete relational persistence schema for users, mocked
-sessions, hosted zones, and DNS record sets. SQLAlchemy 2.x typed declarative
+The application implements a complete relational persistence schema for users,
+mocked sessions, hosted zones, and DNS record sets. SQLAlchemy 2.x typed declarative
 models are the schema source of truth; Alembic revision `67a8ad885a32` creates the
 same structure on SQLite.
 
@@ -77,8 +77,8 @@ constraints.
   `SOA`
 - `RoutingPolicy`: `SIMPLE`
 
-`SOA` exists so later public-zone creation can persist its generated apex SOA
-system record. It is internal support and is not among the assignment's
+`SOA` exists so public-zone creation can persist its generated apex SOA system
+record. It is internal support and is not among the assignment's
 user-created record types. Only simple routing is implemented; no additional
 routing policies are implied by retaining that column.
 
@@ -108,7 +108,7 @@ relationships.
 | --- | --- | --- | --- |
 | `id` | `VARCHAR(36)` | No | UUID4 primary key |
 | `user_id` | `VARCHAR(36)` | No | FK to `users.id`, `ON DELETE CASCADE` |
-| `token_hash` | `VARCHAR(128)` | No | Globally unique future token hash |
+| `token_hash` | `VARCHAR(128)` | No | Globally unique SHA-256 token hash |
 | `expires_at` | `DATETIME` | No | UTC required expiry |
 | `created_at` | `DATETIME` | No | UTC creation time |
 
@@ -120,8 +120,9 @@ Constraints and indexes:
 - Indexes `ix_sessions_token_hash` and `ix_sessions_expires_at`
 
 Only a SHA-256 hash of the cryptographically random token belongs in
-`token_hash`; raw session tokens are never persisted. Case 2 implements creation,
-lookup, UTC expiration, detected-expiry cleanup, and current-session deletion.
+`token_hash`; raw session tokens are never persisted. The authentication layer
+implements creation, lookup, UTC expiration, detected-expiry cleanup, and
+current-session deletion.
 
 ## `hosted_zones`
 
@@ -147,7 +148,7 @@ Constraints and indexes:
 
 One user may therefore own one public and one private zone with the same name,
 while duplicate zones of the same type are rejected. Domain normalisation is
-intentionally not an ORM concern. Case 3's hosted-zone service persists canonical
+intentionally not an ORM concern. The hosted-zone service persists canonical
 lowercase absolute names such as `example.com.`.
 
 ## `dns_records`
@@ -184,8 +185,8 @@ A row represents one Route53-style record set, not one value. For example, both
 MX targets for `example.com.` live in one JSON array and are written atomically.
 SQLAlchemy's JSON type serialises the list for SQLite and restores it as
 `list[str]`; mutable-list tracking also persists intentional in-place changes.
-Case 3 uses this representation for its generated public-zone NS and SOA system
-record sets. Case 4's DNS record service validates user-created value syntax,
+The hosted-zone service uses this representation for its generated public-zone
+NS and SOA system record sets. The DNS record service validates user-created value syntax,
 non-empty arrays, zone containment, CNAME coexistence, and type-specific rules
 without putting business validation in the ORM.
 
@@ -217,7 +218,7 @@ SQLite foreign keys are enabled on every application, test, and Alembic engine.
 ## Ownership and transaction boundaries
 
 Ownership is rooted at `User -> HostedZone`; DNSRecord inherits ownership only
-through its parent zone. Future queries must scope record access through the
+through its parent zone. Queries scope record access through the
 authenticated user's zone and must never trust a client-supplied user ID.
 
 The schema supplies integrity, not business workflows. The authentication service

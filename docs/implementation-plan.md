@@ -1,166 +1,144 @@
-# Implementation plan
+# Historical implementation plan
 
-Case 0 establishes repository structure, contracts, runtime configuration,
-health endpoints, database plumbing, a minimal frontend, containers, tests, and
-documentation. It deliberately contains no business entities, authentication, or
-CRUD workflow.
+**Current status: complete, deployed, and production-verified.**
 
-P0 cases must be completed and stable before optional work. Case 5 added TanStack
-Query for server-state infrastructure and React Hook Form plus Zod for forms.
-Later workflow cases will use those foundations for domain data and may add a
-lightweight accessible toast implementation when mutations need it. Redux and
-Zustand remain outside the architecture.
+This document records how the assignment was delivered. It is historical context,
+not a remaining-work roadmap. The application is live on
+[Vercel](https://route53-clone-three.vercel.app), the API is live on
+[Railway](https://route53-clone-production-eb00.up.railway.app), and all mandatory
+P0 workflows are complete.
 
-## Case 1: Database models, migrations and persistence
+## Case 0: Repository foundation and architecture contracts
 
-Success criteria:
+**Status: complete.**
 
-- Implement typed SQLAlchemy models for User, Session, HostedZone, and DNSRecord
-  exactly within the documented ownership boundaries.
-- Add the first Alembic migration with foreign keys, constraints, and indexes.
-- Store record-set values together and verify SQLite foreign-key/cascade behaviour.
-- Add isolated model and repository persistence tests using temporary databases.
-- Confirm upgrade from an empty database and downgrade behaviour.
+Delivered:
+
+- Frontend/backend/docs monorepo separation
+- Next.js, strict TypeScript, Tailwind CSS, ESLint, and npm lockfile
+- FastAPI factory, versioned router, typed configuration, CORS, and health route
+- SQLAlchemy, SQLite, Alembic, pytest, Docker, and Compose foundations
+- Architecture, API, data-model, UI, and agent contracts
+
+## Case 1: Database models, migrations, and persistence
+
+**Status: complete.**
+
+Delivered:
+
+- Typed SQLAlchemy models for User, Session, HostedZone, and DNSRecord
+- Deterministic constraints, indexes, enum checks, and UTC timestamps
+- SQLite foreign-key enforcement and cascade behaviour
+- Alembic revision `67a8ad885a32`
+- Isolated persistence, migration, constraint, JSON, and cascade tests
 
 ## Case 2: Mock authentication and persistent sessions
 
 **Status: complete.**
 
-Success criteria:
+Delivered:
 
-- Seed or safely bootstrap documented mock users without committing secrets.
-- Implement login, logout, and current-user endpoints through router, service, and
-  repository layers.
-- Store only hashed opaque session tokens, enforce expiry, and authenticate with
-  the bearer token returned once by login.
-- Add authentication dependencies and tests for valid, invalid, expired, revoked,
-  and persisted sessions.
-- Keep authentication explicitly local; do not add AWS or external identity.
+- Idempotent seeded public demo user
+- Argon2 password hashing and generic credential failures
+- Opaque bearer tokens with only SHA-256 token hashes persisted
+- Login, logout, current-user, expiry, and reusable authentication dependencies
+- Repository/service transaction ownership and comprehensive auth tests
 
-## Case 3: Hosted Zone backend CRUD and tests
+## Case 3: Hosted Zone backend CRUD
 
 **Status: complete.**
 
-Success criteria:
+Delivered:
 
-- Implement all documented hosted-zone endpoints and Pydantic schemas.
-- Enforce normalisation, validation, ownership, uniqueness, and immutable fields
-  in services.
-- Create public-zone NS/SOA system records transactionally.
-- Keep routers thin and repositories query-focused.
-- Cover happy paths, pagination, conflicts, ownership isolation, and cascades.
+- Authenticated list, create, detail, comment update, and delete endpoints
+- Canonical domain validation and ownership isolation
+- Search, public/private filtering, sorting, and pagination
+- Atomic deterministic mocked NS/SOA generation for public zones
+- Aggregate record counts and safe duplicate/conflict handling
 
-## Case 4: DNS Record backend CRUD, validation and tests
-
-**Status: complete.**
-
-Success criteria:
-
-- Implement all documented record-set endpoints for every required record type.
-- Validate names, TTL, values, zone containment, record-set uniqueness, CNAME
-  conflicts, and type-specific syntax.
-- Protect generated NS/SOA system records.
-- Keep multi-value record sets atomic and consistently normalised.
-- Cover valid/invalid examples, ownership isolation, filters, conflicts, and
-  delete behaviour.
-
-## Case 5: AWS-style application shell and frontend authentication
+## Case 4: DNS Record backend CRUD and validation
 
 **Status: complete.**
 
-Success criteria:
+Delivered:
 
-- Build the original dark header, light sidebar, page frame, breadcrumbs, and
-  responsive navigation according to the UI specification.
-- Add mocked login/session restoration/logout against the backend.
-- Restrict React Context to authentication state.
-- Provide accessible loading and failure behaviour without fake production data.
-- Add focused component tests where the chosen test tooling provides value.
+- Record-set CRUD for A, AAAA, CNAME, TXT, MX, NS, PTR, SRV, and CAA
+- Read-only internal SOA support
+- Apex/relative owner-name handling and in-zone enforcement
+- Type-specific value canonicalisation and validation
+- CNAME conflict rules, system-record protection, search, filters, and pagination
+
+## Case 5: Route53-style shell and frontend authentication
+
+**Status: complete.**
+
+Delivered:
+
+- Original dark-header/light-sidebar operational console
+- Responsive navigation, breadcrumbs, page headers, and honest placeholders
+- Typed fetch client, API error handling, and TanStack Query provider
+- React Hook Form/Zod login, local mocked-session restoration, protected routes,
+  and logout
+- Focus, keyboard, loading, alert, and reduced-motion foundations
 
 ## Case 6: Hosted Zones frontend workflow
 
 **Status: complete.**
 
-Success criteria:
+Delivered:
 
-- Use TanStack Query to implement hosted-zone list, create, detail, edit-comment,
-  and delete workflows.
-- Use React Hook Form and Zod with backend-error mapping.
-- Provide empty, loading, refreshing, error, success, and confirmation states.
-- Invalidate or update caches intentionally after mutations.
-- Match the API contract and dense operational visual direction.
+- Real API-backed Hosted Zones operational table
+- URL-driven search, filtering, sorting, pagination, refresh, and selection
+- Public/private creation, detail summary, comment editing, and typed deletion
+- Persisted name-server display, copy actions, cache invalidation, and notifications
+- Responsive, accessible loading, error, empty, and mutation states
 
 ## Case 7: DNS Records frontend workflow
 
 **Status: complete.**
 
-Success criteria:
+Delivered:
 
-- Implement record list, create, detail/edit, and delete workflows.
-- Provide type-aware controls and guidance for every required record type.
-- Support multiple values as one record set and protect system records in the UI.
-- Preserve backend validation as authoritative and render its errors clearly.
-- Verify keyboard and screen-reader operation for dynamic value controls.
+- Real API-backed DNS record-set table and nested records route
+- URL-driven name/value search, type/policy/alias filters, sorting, and pagination
+- Type-aware create editor for every required user record type
+- Values/TTL editing and deletion for user-managed records
+- Visible protected system NS/SOA records and Hosted Zone count integration
 
-## Case 8: Production deployment readiness
+## Case 8: Production deployment
+
+**Status: complete and live.**
+
+Delivered and verified:
+
+- Vercel frontend:
+  <https://route53-clone-three.vercel.app>
+- One-worker Railway FastAPI service:
+  <https://route53-clone-production-eb00.up.railway.app>
+- Railway SQLite volume mounted at `/data`
+- Fail-fast migration, idempotent seeding, and Uvicorn startup
+- Exact-origin production CORS and validated public frontend API URL
+- Production health, authentication, Hosted Zone CRUD, and DNS Record CRUD
+- Railway restart persistence for users, sessions, Hosted Zones, and DNS records
+- Local production-like Docker Compose flow
+
+## Final submission QA
 
 **Status: complete.**
 
-Success criteria:
+- Reviewer-first README and sanitized production screenshots
+- Backend: 272 tests passed
+- Frontend: 181 tests passed
+- ESLint, strict TypeScript, Next.js production build, pip dependency check, and
+  Alembic schema check passed
+- Production npm dependency audit reported zero known vulnerabilities
+- Public GitHub, Vercel, Railway, health, docs, and nested application links
+  verified
+- Deployment acceptance and restart-persistence checklist completed
 
-- Start Railway through a fail-fast migrate, idempotent seed, and one-worker
-  Uvicorn sequence.
-- Persist production SQLite data on a Railway volume mounted at `/data`.
-- Restrict CORS to one configured frontend origin and validate the Vercel API URL.
-- Keep local Compose startup and its persistent development volume functional.
-- Document exact Railway/Vercel configuration and deployment acceptance checks.
+## Optional functionality
 
-Search, filtering, sorting, pagination, and page-scoped selection were delivered
-within Cases 6 and 7. Bulk product operations remain deliberately out of scope.
-
-## Case 9: Visual-polish and accessibility pass
-
-Success criteria:
-
-- Audit spacing, compact typography, borders, actions, responsive layouts, and
-  Route53-inspired hierarchy across all workflows.
-- Meet meaningful keyboard, focus, label, semantic table, dialog, and live-region
-  requirements.
-- Check contrast and reduced-motion expectations.
-- Remove placeholder UI that distracts from P0; retain only honest labels.
-- Validate loading, error, empty, overflow, and long-DNS-value edge cases.
-
-## Case 10: CI and live-deployment verification
-
-Success criteria:
-
-- Add CI for backend tests plus frontend lint, type checking, and builds.
-- Connect the repository to the prepared Vercel and Railway services.
-- Execute the production checklist against the assigned public URLs.
-- Verify deployed health, CORS, restart persistence, and browser workflows.
-- Record rollback and operational outcomes without adding product scope.
-
-The container, persistent-volume, one-worker startup, environment validation, and
-deployment documentation were completed early in Case 8 because production
-readiness became the immediate priority.
-
-## Case 11: README, screenshots and final QA
-
-Success criteria:
-
-- Update README claims to match the finished application exactly.
-- Add original screenshots of core workflows and final setup/deployment guidance.
-- Run a clean-clone setup, migration, complete test/lint/build suite, and manual
-  P0 acceptance checklist.
-- Audit API docs, environment templates, licences, and repository hygiene.
-- Record known limitations honestly with no secrets or local databases committed.
-
-## Case 12: Optional bonus functionality
-
-Success criteria:
-
-- Begin only after every P0 acceptance criterion passes.
-- Select a small feature with a written contract and no deployment-risk increase.
-- Preserve the modular-monolith boundaries and Route53 visual direction.
-- Add complete tests and documentation; do not leave partial bonus navigation.
-- Re-run the full P0 regression suite before considering the bonus complete.
+Optional bonuses were deliberately not pursued. BIND import/export, alias
+targets, additional routing policies, bulk operations, dark mode, and real DNS
+infrastructure remain outside the assignment scope so the mandatory workflows
+and deployment stay reliable.
