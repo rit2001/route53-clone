@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 3 — authenticated Hosted Zone backend CRUD.**
+**Case 4 — validated DNS Record backend CRUD.**
 
 Available now:
 
@@ -24,19 +24,24 @@ Available now:
 - Hosted Zone search, public/private filtering, allowlisted sorting, and pagination
 - Atomic mocked NS and SOA system-record generation for public zones
 - Aggregate record counts without per-zone count queries
+- Authenticated DNS record-set list, create, detail, values/TTL update, and delete
+- Type-specific validation for A, AAAA, CNAME, TXT, MX, NS, PTR, SRV, and CAA
+- Apex/relative record-name resolution, in-zone enforcement, and stable value
+  deduplication
+- CNAME coexistence rules and read-only protection for generated NS/SOA records
+- Record search, type/routing/alias filters, allowlisted sorting, and pagination
 - Backend API, security, seed, persistence, cascade, and migration tests
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-General DNS Record CRUD remains planned for Case 4. Frontend authentication and
-Hosted Zone management remain deferred to Cases 5 and 6.
+Frontend authentication and Hosted Zone/DNS Record workflows remain deferred to
+Cases 5–7.
 
-## Planned features
+## Remaining planned work
 
-- Persistent mocked users and sessions
-- Public and private hosted-zone management
-- Multi-value DNS record-set management for the required record types
-- Route53-inspired operational tables, forms, search, filters, and pagination
+- Mocked frontend authentication and session restoration
+- Route53-inspired Hosted Zone and DNS Record tables and forms
+- URL-backed frontend search, filters, sorting, and pagination
 - Confirmation dialogs, toasts, and complete loading/error/empty states
 - Vercel frontend plus one-worker Railway backend deployment
 
@@ -162,6 +167,51 @@ curl "http://localhost:8000/api/v1/hosted-zones?search=example&zone_type=PUBLIC&
   -H "Authorization: Bearer REPLACE_WITH_TOKEN"
 ```
 
+Create an A record set:
+
+```bash
+curl -X POST \
+  http://localhost:8000/api/v1/hosted-zones/ZONE_ID/records \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "api",
+    "record_type": "A",
+    "values": ["192.0.2.10"],
+    "ttl": 300
+  }'
+```
+
+Create an apex MX record set:
+
+```bash
+curl -X POST \
+  http://localhost:8000/api/v1/hosted-zones/ZONE_ID/records \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "@",
+    "record_type": "MX",
+    "values": [
+      "10 mail1.example.com.",
+      "20 mail2.example.com."
+    ],
+    "ttl": 300
+  }'
+```
+
+List or search record sets:
+
+```bash
+curl "http://localhost:8000/api/v1/hosted-zones/ZONE_ID/records?search=api&record_type=A&page=1&page_size=25&sort_by=name&sort_order=asc" \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN"
+```
+
+Supported user-created types are `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`,
+`PTR`, `SRV`, and `CAA`. `SOA` is internal and generated public-zone NS/SOA
+records are visible but protected from ordinary update and delete. Only simple
+routing is supported, and alias creation is deliberately rejected.
+
 In another shell, start the frontend:
 
 ```bash
@@ -219,16 +269,22 @@ Implemented:
 - `GET /api/v1/hosted-zones/{zone_id}`
 - `PATCH /api/v1/hosted-zones/{zone_id}`
 - `DELETE /api/v1/hosted-zones/{zone_id}`
+- `GET /api/v1/hosted-zones/{zone_id}/records`
+- `POST /api/v1/hosted-zones/{zone_id}/records`
+- `GET /api/v1/hosted-zones/{zone_id}/records/{record_id}`
+- `PATCH /api/v1/hosted-zones/{zone_id}/records/{record_id}`
+- `DELETE /api/v1/hosted-zones/{zone_id}/records/{record_id}`
 
 The implemented and planned API is documented in the
 [API contract](docs/api-contract.md).
 
 ## Current limitations
 
-- General DNS Record CRUD is not implemented; only automatic public-zone NS and
-  SOA system records exist.
 - The frontend has no authentication flow and remains a development notice.
-- Hosted Zone management currently requires direct API use.
+- Hosted Zone and DNS Record management currently require direct API use.
+- The application stores mocked control-plane data and does not publish or
+  resolve real DNS.
+- Alias targets and non-simple routing policies are outside the assignment.
 - CI and live Vercel/Railway configuration are deferred to Case 10.
 
 ## Licence

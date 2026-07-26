@@ -13,6 +13,7 @@ from app.core.exceptions import (
 )
 from app.models.user import User
 from app.services.auth import AuthenticatedSession, AuthenticationService
+from app.services.dns_record import DNSRecordService
 from app.services.hosted_zone import HostedZoneService
 
 bearer_scheme = HTTPBearer(
@@ -78,3 +79,9 @@ def get_hosted_zone_service(
     db: Annotated[Session, Depends(get_db)],
 ) -> HostedZoneService:
     return HostedZoneService(db)
+
+
+def get_dns_record_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> DNSRecordService:
+    return DNSRecordService(db)

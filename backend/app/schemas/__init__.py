@@ -1,4 +1,11 @@
 from app.schemas.auth import LoginRequest, LoginResponse, UserResponse
+from app.schemas.dns_record import (
+    DNSRecordCreate,
+    DNSRecordListResponse,
+    DNSRecordResponse,
+    DNSRecordUpdate,
+    UserCreatableDNSRecordType,
+)
 from app.schemas.hosted_zone import (
     HostedZoneCreate,
     HostedZoneDetail,
@@ -8,6 +15,10 @@ from app.schemas.hosted_zone import (
 )
 
 __all__ = [
+    "DNSRecordCreate",
+    "DNSRecordListResponse",
+    "DNSRecordResponse",
+    "DNSRecordUpdate",
     "HostedZoneCreate",
     "HostedZoneDetail",
     "HostedZoneListItem",
@@ -16,4 +27,5 @@ __all__ = [
     "LoginRequest",
     "LoginResponse",
     "UserResponse",
+    "UserCreatableDNSRecordType",
 ]

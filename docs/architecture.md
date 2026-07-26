@@ -140,6 +140,37 @@ transaction: public-zone creation commits the zone plus NS and SOA together,
 while comment updates and cascade deletes each commit once. Integrity conflicts
 are rolled back and converted to the stable API contract.
 
+## DNS record-set lifecycle
+
+DNS record requests resolve ownership before looking up or mutating a record:
+
+```mermaid
+flowchart TD
+    User[Authenticated user] --> Zone[Resolve owned Hosted Zone]
+    Zone --> Name[Normalize in-zone record name]
+    Name --> Values[Validate and normalize values by type]
+    Values --> Conflicts[Check duplicate and CNAME conflicts]
+    Conflicts --> Record[Persist DNS record set]
+    Record --> Commit[Single transaction commit]
+    Record -. failure .-> Rollback[Roll back transaction]
+```
+
+Record owner names and hostname targets deliberately use separate validators.
+Owner names support relative resolution, apex aliases, controlled
+leading-underscore service labels, and one leftmost wildcard while remaining
+inside the Hosted Zone. Targets may be external, but permit neither underscores,
+wildcards, IP addresses, nor URL syntax. Type validators canonicalize IPs,
+hostnames, numeric fields, and spacing before stable value deduplication.
+
+The service prevents apex and coexistence-invalid CNAMEs, rejects unsupported
+aliases, and keeps `SOA` internal. Generated NS/SOA records use the same read
+model but are protected from update and delete by `is_system`. Repositories
+scope every record query to its already-owned zone and never commit.
+
+Record listing uses one ownership query, one total query, and one paginated
+record query, independent of result count. SQLite-compatible JSON-to-text casting
+supports value search without related-resource loading or per-record queries.
+
 ## Deployment
 
 Vercel hosts the Next.js frontend. Railway runs the FastAPI container and mounts a

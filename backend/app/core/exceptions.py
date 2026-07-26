@@ -90,3 +90,54 @@ def domain_validation_error(message: str) -> APIError:
         code="VALIDATION_ERROR",
         message=message,
     )
+
+
+def dns_record_not_found_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_404_NOT_FOUND,
+        code="DNS_RECORD_NOT_FOUND",
+        message="The DNS record was not found.",
+    )
+
+
+def dns_record_already_exists_error(
+    name: str,
+    record_type: str,
+) -> APIError:
+    return APIError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="DNS_RECORD_ALREADY_EXISTS",
+        message=f"An {record_type} record already exists for {name}",
+    )
+
+
+def cname_conflict_error(message: str) -> APIError:
+    return APIError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="CNAME_CONFLICT",
+        message=message,
+    )
+
+
+def system_record_protected_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="SYSTEM_RECORD_PROTECTED",
+        message="System-generated NS and SOA records cannot be modified.",
+    )
+
+
+def alias_not_supported_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        code="ALIAS_NOT_SUPPORTED",
+        message="Alias records are not supported in this assignment.",
+    )
+
+
+def dns_record_creation_failed_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        code="DNS_RECORD_CREATION_FAILED",
+        message="The DNS record could not be created.",
+    )

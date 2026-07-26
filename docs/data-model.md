@@ -185,8 +185,9 @@ MX targets for `example.com.` live in one JSON array and are written atomically.
 SQLAlchemy's JSON type serialises the list for SQLite and restores it as
 `list[str]`; mutable-list tracking also persists intentional in-place changes.
 Case 3 uses this representation for its generated public-zone NS and SOA system
-record sets. Case 4 will validate user-created value syntax, non-empty arrays,
-zone containment, CNAME coexistence, and other DNS rules in the service layer.
+record sets. Case 4's DNS record service validates user-created value syntax,
+non-empty arrays, zone containment, CNAME coexistence, and type-specific rules
+without putting business validation in the ORM.
 
 ## Relationships, loading, and cascades
 
@@ -222,4 +223,5 @@ authenticated user's zone and must never trust a client-supplied user ID.
 The schema supplies integrity, not business workflows. The authentication service
 owns session transaction boundaries. The hosted-zone service owns atomic zone
 creation plus public NS/SOA records, comment updates, and cascade deletion.
-Case 4's record service will own user-managed record-set mutations.
+The DNS record service owns user-managed record-set creation, value/TTL updates,
+system-record protection, and deletion.

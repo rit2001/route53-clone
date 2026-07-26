@@ -1,7 +1,7 @@
 # API contract
 
-The system, authentication, and hosted-zone routes are implemented. General
-DNS-record routes remain planned and must not be treated as available yet.
+The system, authentication, Hosted Zone, and DNS record-set routes are
+implemented.
 
 ## General conventions
 
@@ -237,21 +237,25 @@ validation-detail list.
 ## DNS record sets
 
 `DNSRecord` represents one record set. Multiple values for the same name, type,
-and TTL are stored and returned together.
+and TTL are stored and returned together in stable first-seen order.
 
-Supported types are `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `PTR`, `SRV`, and
-`CAA`.
+User-created types are `A`, `AAAA`, `CNAME`, `TXT`, `MX`, `NS`, `PTR`, `SRV`,
+and `CAA`. `SOA` is readable but reserved for generated system records. Every
+endpoint first resolves the authenticated user's Hosted Zone; an unowned zone
+returns `HOSTED_ZONE_NOT_FOUND`. Record lookup is then scoped by both zone and
+record ID.
 
 Record-set representation:
 
 ```json
 {
   "id": "e2335892-7059-4618-b617-3046449862f7",
-  "hosted_zone_id": "Z08719372Q4ABCDEF92XY",
   "name": "www.example.com.",
-  "type": "A",
-  "ttl": 300,
+  "record_type": "A",
   "values": ["192.0.2.10", "192.0.2.11"],
+  "ttl": 300,
+  "routing_policy": "SIMPLE",
+  "alias": false,
   "is_system": false,
   "created_at": "2026-07-26T12:35:00Z",
   "updated_at": "2026-07-26T12:35:00Z"
@@ -260,61 +264,132 @@ Record-set representation:
 
 ### `GET /api/v1/hosted-zones/{zone_id}/records`
 
-Returns a paginated list for an owned hosted zone.
+Implemented. Returns a paginated list for an owned Hosted Zone, including
+generated NS/SOA records.
 
 Parameters:
 
+- `search`: trimmed, case-insensitive partial match on owner name or serialized
+  record values; empty text is ignored
+- `record_type`: optional readable type, including `SOA`
+- `routing_policy`: optional `SIMPLE`
+- `alias`: optional boolean matching persisted alias state
 - `page`: integer, default `1`, minimum `1`
-- `page_size`: integer, default `10`, allowed `10`, `25`, `50`, `100`
-- `search`: case-insensitive partial match on record name or value
-- `record_type`: one supported record type; may be repeated
-- `system`: optional boolean filter
-- `sort`: `name`, `type`, `ttl`, `created_at`, or `updated_at`
-- `order`: `asc` or `desc`
+- `page_size`: integer, default `25`, range `1..100`
+- `sort_by`: `name`, `record_type`, `ttl`, `created_at`, or `updated_at`;
+  default `name`
+- `sort_order`: `asc` or `desc`; default `asc`
 
-The response uses the standard pagination envelope.
+Sorting uses record ID as a deterministic secondary key. The response uses:
+
+```json
+{
+  "items": [],
+  "page": 1,
+  "page_size": 25,
+  "total": 0,
+  "total_pages": 0
+}
+```
 
 ### `POST /api/v1/hosted-zones/{zone_id}/records`
 
-Planned request:
+Implemented request:
 
 ```json
 {
-  "name": "www",
-  "type": "A",
+  "name": "api",
+  "record_type": "A",
+  "values": ["192.0.2.10", "192.0.2.11"],
   "ttl": 300,
-  "values": ["192.0.2.10", "192.0.2.11"]
+  "routing_policy": "SIMPLE",
+  "alias": false
 }
 ```
 
-Relative names are resolved within the zone; `@` represents the zone apex.
-Returns `201 Created` with the record-set representation and a `Location` header.
-Duplicate values are rejected or normalised before persistence according to the
-type validator.
+`name` defaults to the zone apex. Empty text, whitespace, `@`, or the canonical
+zone name resolves to the apex. Relative names are appended to the zone, while
+already-qualified in-zone names are preserved. Absolute outside-zone names,
+invalid labels, URLs, paths, ports, email-like names, and non-ASCII input are
+rejected. Owner labels may use a single leading underscore, and one wildcard is
+allowed only as the complete leftmost label. This supports names such as
+`_sip._tcp.example.com.` and `*.api.example.com.`.
+
+At least one and at most 100 values are accepted. Values are normalized by type
+and then stably deduplicated:
+
+- `A`: canonical IPv4 addresses, without CIDR or ports
+- `AAAA`: compressed lowercase IPv6 addresses, without CIDR
+- `CNAME`: exactly one canonical non-IP hostname target
+- `TXT`: trimmed quoted or unquoted text; quotes and internal spaces are retained
+- `MX`: `<0..65535 priority> <canonical hostname>`
+- `NS`: one or more canonical hostname targets
+- `PTR`: one or more canonical hostname targets
+- `SRV`: `<priority> <weight> <port> <canonical hostname>`, with each number
+  in `0..65535`
+- `CAA`: `<0..255 flags> <ASCII tag> "<policy>"`; policy quotes are required
+
+Hostname targets may be external to the Hosted Zone but cannot be IP addresses,
+URLs, paths, ports, wildcard names, or underscore owner labels. The root target
+`.` is rejected for simplicity.
+
+`ttl` is limited to `1..2147483647`. Only `SIMPLE` routing is available.
+`alias=true` returns `422 ALIAS_NOT_SUPPORTED`; no alias target is modeled.
+Unknown fields and client-controlled IDs, ownership, timestamps, and
+`is_system` are rejected. User requests cannot select `SOA`.
+
+The service checks record-set uniqueness and CNAME coexistence before inserting,
+then flushes and commits once. Normalization or conflict failures create no row.
+Returns `201 Created` with the representation and a `Location` header.
+
+CNAME rules:
+
+- a CNAME cannot exist at the Hosted Zone apex;
+- a CNAME cannot coexist with any other type at one owner name;
+- no other type can be created where a CNAME exists.
 
 ### `GET /api/v1/hosted-zones/{zone_id}/records/{record_id}`
 
-Returns `200` for a record in the owned zone. A missing zone, unowned zone, or
-record outside that zone returns `404`.
+Implemented. Returns `200` for a user-created or system record in the owned zone.
+A record ID from another zone or an unknown ID returns
+`DNS_RECORD_NOT_FOUND`; an unowned zone returns `HOSTED_ZONE_NOT_FOUND`.
 
 ### `PATCH /api/v1/hosted-zones/{zone_id}/records/{record_id}`
 
-Planned request (at least one field):
+Implemented request:
 
 ```json
 {
-  "ttl": 60,
-  "values": ["192.0.2.12"]
+  "values": ["192.0.2.20", "192.0.2.21"],
+  "ttl": 600
 }
 ```
 
-Record name and type are immutable; the client creates a replacement when those
-must change. System NS and SOA records cannot be changed. Returns `200`.
+At least one non-null field is required. Type-specific value validation and
+stable deduplication run again. Name, type, ID, zone, routing policy, alias state,
+and system state are immutable. Returns `200` with the same record ID and an
+updated timestamp. Generated system NS/SOA returns
+`409 SYSTEM_RECORD_PROTECTED`.
 
 ### `DELETE /api/v1/hosted-zones/{zone_id}/records/{record_id}`
 
-Deletes a user-managed record set and returns `204 No Content`. System record
-sets return `409 Conflict`.
+Implemented. Deletes a user-managed record set and returns `204 No Content` with
+no body. A second delete returns `DNS_RECORD_NOT_FOUND`. Generated system NS/SOA
+returns `409 SYSTEM_RECORD_PROTECTED`. User-created delegated-subdomain NS sets
+remain editable and deletable.
+
+Record application errors:
+
+- `DNS_RECORD_NOT_FOUND`: `404`
+- `DNS_RECORD_ALREADY_EXISTS`: `409`
+- `CNAME_CONFLICT`: `409`
+- `SYSTEM_RECORD_PROTECTED`: `409`
+- `ALIAS_NOT_SUPPORTED`: `422`
+- `DNS_RECORD_CREATION_FAILED`: safe `500` after rollback
+- `VALIDATION_ERROR`: `422` for service-level name or value validation
+
+This API stores mocked control-plane data only. It performs no DNS lookup,
+publication, delegation, or resolution.
 
 ## Health
 
@@ -350,8 +425,9 @@ field locations and messages.
 Implemented codes include `AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`,
 `INVALID_SESSION`, `SESSION_EXPIRED`, `HOSTED_ZONE_NOT_FOUND`,
 `HOSTED_ZONE_ALREADY_EXISTS`, `HOSTED_ZONE_CREATION_FAILED`,
-`VALIDATION_ERROR`, and `INTERNAL_ERROR`. `SYSTEM_RECORD_PROTECTED` remains
-planned for Case 4.
+`DNS_RECORD_NOT_FOUND`, `DNS_RECORD_ALREADY_EXISTS`, `CNAME_CONFLICT`,
+`SYSTEM_RECORD_PROTECTED`, `ALIAS_NOT_SUPPORTED`,
+`DNS_RECORD_CREATION_FAILED`, `VALIDATION_ERROR`, and `INTERNAL_ERROR`.
 
 ## HTTP status conventions
 

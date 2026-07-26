@@ -52,6 +52,8 @@ Success criteria:
 
 ## Case 4: DNS Record backend CRUD, validation and tests
 
+**Status: complete.**
+
 Success criteria:
 
 - Implement all documented record-set endpoints for every required record type.
