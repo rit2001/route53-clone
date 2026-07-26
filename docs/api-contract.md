@@ -8,7 +8,7 @@ routes below are planned and must not be treated as available yet.
 
 - Base path: `/api/v1`
 - Media type: `application/json`
-- Identifiers: opaque UUID strings
+- Identifiers: opaque UUID strings except Route53-inspired hosted-zone IDs
 - Dates: UTC ISO 8601 strings, for example `2026-07-26T12:30:00Z`
 - DNS names: returned in normalised lowercase form with a trailing dot
 - Authentication: planned HTTP-only session cookie
@@ -58,9 +58,9 @@ Hosted zone representation:
 
 ```json
 {
-  "id": "58fbbc58-70df-4d21-9a30-daebf24f9a32",
+  "id": "Z08719372Q4ABCDEF92XY",
   "name": "example.com.",
-  "zone_type": "public",
+  "zone_type": "PUBLIC",
   "comment": "Primary application zone",
   "record_count": 2,
   "created_at": "2026-07-26T12:30:00Z",
@@ -77,7 +77,7 @@ Parameters:
 - `page`: integer, default `1`, minimum `1`
 - `page_size`: integer, default `10`, allowed `10`, `25`, `50`, `100`
 - `search`: case-insensitive partial match on zone name
-- `zone_type`: optional `public` or `private`
+- `zone_type`: optional `PUBLIC` or `PRIVATE`
 - `sort`: `name`, `created_at`, `updated_at`, or `record_count`
 - `order`: `asc` or `desc`
 
@@ -100,7 +100,7 @@ Planned request:
 ```json
 {
   "name": "example.com",
-  "zone_type": "public",
+  "zone_type": "PUBLIC",
   "comment": "Primary application zone"
 }
 ```
@@ -145,7 +145,7 @@ Record-set representation:
 ```json
 {
   "id": "e2335892-7059-4618-b617-3046449862f7",
-  "hosted_zone_id": "58fbbc58-70df-4d21-9a30-daebf24f9a32",
+  "hosted_zone_id": "Z08719372Q4ABCDEF92XY",
   "name": "www.example.com.",
   "type": "A",
   "ttl": 300,

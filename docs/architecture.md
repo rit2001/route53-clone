@@ -91,8 +91,8 @@ persistent volume at `/data`. The backend process must use exactly one Uvicorn
 worker because multiple independent processes can contend for SQLite writes and
 do not share in-process coordination. Railway supplies environment variables,
 including `DATABASE_URL=sqlite:////data/route53.db` and the deployed frontend
-origin. Alembic migrations will run as an explicit deployment step before the
-application starts once models exist.
+origin. Alembic migrations must run as an explicit deployment step before the
+application starts.
 
 The local Compose volume is mounted at `/app/data`; it intentionally does not
 imitate or mount Railway's production `/data` volume.

@@ -6,20 +6,22 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 0 — repository foundation and architecture contracts.**
+**Case 1 — database models, migrations, and persistent SQLite behaviour.**
 
 Available now:
 
 - Next.js App Router foundation with strict TypeScript, Tailwind CSS, and ESLint
 - FastAPI application factory, versioned routing, CORS, and health endpoints
 - SQLAlchemy session/engine foundation with SQLite foreign keys enabled
-- Alembic configured against application metadata, with no premature migration
-- Backend endpoint/configuration tests
+- Typed User, Session, HostedZone, and DNSRecord persistence models
+- Deterministic constraints, indexes, enum checks, and database cascade deletes
+- Alembic revision `67a8ad885a32` for the complete core schema
+- Backend endpoint, persistence, constraint, cascade, and migration tests
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-Hosted zone CRUD, record CRUD, database entities, and authentication are planned
-but are not implemented yet.
+Hosted zone CRUD, record CRUD, authentication behaviour, repositories, and
+services are planned but are not implemented yet.
 
 ## Planned features
 
@@ -39,7 +41,7 @@ acceptance criteria.
 | --- | --- |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, ESLint, npm |
 | Backend | Python, FastAPI, Pydantic Settings, SQLAlchemy 2.x, Alembic |
-| Testing | pytest, HTTPX/FastAPI TestClient |
+| Testing | pytest, HTTPX ASGI transport |
 | Database | SQLite |
 | Deployment target | Vercel frontend, Railway backend and persistent volume |
 
@@ -79,6 +81,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -114,6 +117,8 @@ cd backend
 source .venv/bin/activate
 pytest
 python -c "from app.main import app; print(app.title)"
+alembic current
+alembic check
 ```
 
 Production-like local containers:
@@ -139,9 +144,9 @@ The planned but unimplemented API is documented in the
 
 ## Current limitations
 
-- There are no database tables or migrations because Case 1 has not started.
-- Authentication and persistent sessions are not implemented.
+- Authentication workflows and session lifecycle logic are not implemented.
 - Hosted zones and DNS records cannot yet be created or managed.
+- No demo users or data are seeded.
 - The frontend is a minimal development notice, not the final console.
 - CI and live Vercel/Railway configuration are deferred to Case 10.
 

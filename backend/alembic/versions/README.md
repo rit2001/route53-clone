@@ -1,4 +1,4 @@
 # Migrations
 
-Case 0 defines no database entities, so there is intentionally no migration yet.
-Case 1 will generate the first revision from the application metadata.
+`67a8ad885a32_create_core_persistence_tables.py` is the first business migration.
+It creates the User, Session, HostedZone, and DNSRecord schema defined in Case 1.
