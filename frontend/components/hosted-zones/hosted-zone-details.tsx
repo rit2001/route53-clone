@@ -1,6 +1,7 @@
 "use client";
 
 import { Copy, FilePenLine, Info, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -151,20 +152,18 @@ export function HostedZoneDetails({ zoneId }: HostedZoneDetailsProps) {
           <h2 className="text-base font-semibold" id="zone-details-heading">
             Hosted zone details
           </h2>
-          <button
-            aria-describedby="records-case-note"
+          <Link
             className="secondary-button"
-            disabled
-            type="button"
+            href={`/route53/hosted-zones/${encodeURIComponent(zone.id)}/records`}
           >
             Manage records
-          </button>
+          </Link>
         </div>
         <p
           className="border-b border-[var(--border)] bg-[var(--surface-subtle)] px-5 py-2 text-xs text-[var(--muted)]"
-          id="records-case-note"
         >
-          DNS record management will be available in Case 7.
+          Manage persisted record sets, including values and TTL, without
+          publishing real DNS.
         </p>
         <dl className="details-grid">
           <div className="details-row">

@@ -27,6 +27,7 @@ The frontend exposes:
 - `/route53/hosted-zones`
 - `/route53/hosted-zones/new`
 - `/route53/hosted-zones/{zoneId}`
+- `/route53/hosted-zones/{zoneId}/records`
 - `/route53/traffic-policies`
 - `/route53/health-checks`
 - `/route53/resolver`
@@ -171,9 +172,8 @@ servers from the API. Public zones expose individual and copy-all name-server
 controls; private zones explain that no public name servers exist. A notice
 states that the clone does not resolve real DNS.
 
-Manage records is visibly disabled and described as Case 7 work; no record table
-is fabricated. API-derived 404s use an ownership-safe not-found state. Other
-failures remain retryable in page context.
+Manage records links to the nested records route. API-derived 404s use an
+ownership-safe not-found state. Other failures remain retryable in page context.
 
 Edit description opens a Radix dialog prepopulated from detail data. It permits
 clearing or trimming only the 256-character comment and explains name/type
@@ -182,32 +182,79 @@ immediately.
 
 ## Records table
 
-The records surface provides Create record, search, type filters, refresh, row
-selection, and result count. Columns are name, type, routing policy placeholder,
-set identifier placeholder, values/traffic target, TTL, and system status where
-relevant. Long value lists are readable without making every row tall by default.
-Generated NS/SOA records are labelled and protected from edit/delete controls.
+Case 7 implements `/route53/hosted-zones/{zoneId}/records`. It first resolves the
+Hosted Zone so the header can show its canonical name, public/private type, ID,
+current record count, ownership-safe breadcrumbs, and a direct link back to zone
+details. An inline notice says that persisted configuration does not resolve real
+DNS.
+
+The two-row toolbar keeps Refresh and Delete record on the left and the orange
+Create record action on the right. Search, record type, routing policy, alias
+status, and Clear filters occupy a compact second row.
+
+The dense table columns are page-scoped selection, record name, type, routing
+policy, alias state, values/traffic target, TTL, and actions. Record name, type,
+and TTL are backend-sortable and expose `aria-sort`. Names retain their canonical
+trailing dot. Values render one per line rather than as JSON; more than three can
+be expanded, and all values or the owner name can be copied.
+
+Generated public-zone NS and SOA sets remain visible, searchable, and filterable.
+They carry a restrained `System` label, disabled selection, a `System managed`
+action state, and an explanation that they cannot be changed. User-created
+records expose discoverable Edit and Delete buttons. Header selection considers
+only user-managed rows; exactly one selection enables toolbar deletion and
+multiple selection explains that bulk deletion is out of scope.
 
 ## Record form
 
-The create/edit surface includes record name, record type, TTL, and one or more
-values. Labels and examples change by type for `A`, `AAAA`, `CNAME`, `TXT`, `MX`,
-`NS`, `PTR`, `SRV`, and `CAA`. Users can add/remove value rows. The interface
-explains zone-relative names, apex `@`, and why system records cannot be edited.
-Changing type resets only incompatible value guidance with explicit confirmation
-when data would be lost.
+Create and edit use a viewport-bounded, focus-managed wide Radix dialog. The
+create editor includes optional record name, one of the nine creatable types,
+multiline values, TTL, fixed Simple routing, and an explicit non-alias notice.
+Blank or `@` names represent the apex; relative names are appended by the
+backend.
+
+Values use one line per record-set value. Empty lines are removed and exact
+trimmed duplicates are stably deduplicated without splitting embedded MX, SRV,
+TXT, or CAA spaces. Client validation enforces at least one and at most 100
+values, a 2048-character line limit, integer TTL `1..2147483647`, and one CNAME
+target. Backend record-name and type-specific DNS validation remains
+authoritative.
+
+Contextual help and examples are implemented for:
+
+- `A`: `192.0.2.10`
+- `AAAA`: `2001:db8::10`
+- `CNAME`: `target.example.net.`
+- `TXT`: `"verification=value"`
+- `MX`: `10 mail.example.com.`
+- `NS`: `ns1.example.net.`
+- `PTR`: `host.example.com.`
+- `SRV`: `10 5 443 service.example.com.`
+- `CAA`: `0 issue "letsencrypt.org"`
+
+SOA is never offered in the create selector. Edit displays immutable name/type
+context and submits only values and TTL. System records have no edit action, and
+the editor itself also refuses a directly supplied system record.
+
+Deletion uses the shared accessible destructive dialog. It shows type, canonical
+name, and a bounded values preview, requires an explicit Delete record action,
+locks while pending, and remains open with inline feedback on failure. System
+records cannot open it through normal row controls, and it independently refuses
+their deletion.
 
 ## Search, filters, sorting, and pagination
 
 List state belongs in URL search parameters so views are shareable and browser
-navigation works. Case 6 omits default parameters and safely falls back from
-invalid values. Changing search, type, page size, or sorting resets page to one;
-direct pagination does not.
+navigation works. Hosted Zone and DNS Record parsers omit defaults and safely
+fall back from invalid values. Record state covers `search`, `record_type`,
+`routing_policy`, `alias`, `page`, `page_size`, `sort_by`, and `sort_order`.
+Changing operational state resets page to one; direct pagination does not.
 
 A 300 ms trimmed search debounce avoids per-keystroke API requests. Empty search
-and clear controls remove the parameter. Type filtering uses an accessible native
-select. Clearing filters removes their parameters while deliberately preserving
-unrelated safe parameters.
+and clear controls remove the parameter. Record filters expose every readable
+type including SOA, Simple routing, and true/false alias status through accessible
+native selects. Clearing filters removes their parameters while deliberately
+preserving unrelated safe parameters.
 
 Sortable column headers expose direction to assistive technology and request
 backend sorting. Pagination reports the visible range and total with compact
@@ -239,11 +286,11 @@ near the affected content; notifications are not the sole error channel.
 - A filtered empty state says no results matched and offers to clear filters.
 - Controls expose disabled and busy states during mutations.
 
-Case 6 implements each state. Initial list loading keeps page and toolbar context
-with compact skeleton rows. Background fetches retain the table. Network failures
-mention backend connectivity and offer Retry. First-use and filtered-empty states
-have distinct copy and actions. Detail loading, not-found, and retryable failures
-use the same operational surfaces.
+Cases 6 and 7 implement each state. Initial list loading keeps page context with
+compact table-shaped rows. Background fetches retain data. DNS list failures
+mention API connectivity and offer Retry. An empty private zone offers Create
+record; filtered emptiness offers Clear filters. Hosted Zone not-found responses
+stay ownership-safe.
 
 ## Hosted Zone responsive and accessibility decisions
 
@@ -257,6 +304,14 @@ row/header checkboxes, `aria-sort`, status announcements, associated form errors
 native buttons, disabled-state descriptions, dialog focus trapping/restoration,
 Escape dismissal, and reduced-motion skeleton/spinner behaviour are covered by
 component tests.
+
+The records table uses the same labelled, keyboard-focusable horizontal scroll
+strategy. Toolbar filters wrap on smaller screens, the values column retains
+useful width, and the wide editor scrolls internally with a reachable sticky
+footer. Semantic captions, labelled checkboxes, disabled system explanations,
+native filter controls, row action buttons, linked form errors, live loading
+states, Radix focus restoration, and inline mutation errors protect the records
+workflow without replacing the table with generic cards.
 
 ## Placeholder sections
 

@@ -92,6 +92,8 @@ Success criteria:
 
 ## Case 7: DNS Records frontend workflow
 
+**Status: complete.**
+
 Success criteria:
 
 - Implement record list, create, detail/edit, and delete workflows.

@@ -9,6 +9,7 @@ type DialogFrameProps = Readonly<{
   description: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  size?: "default" | "wide";
   title: string;
 }>;
 
@@ -17,13 +18,18 @@ export function DialogFrame({
   description,
   open,
   onOpenChange,
+  size = "default",
   title,
 }: DialogFrameProps) {
   return (
     <Dialog.Root onOpenChange={onOpenChange} open={open}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/45" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-menu)]">
+        <Dialog.Content
+          className={`fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-[var(--shadow-menu)] ${
+            size === "wide" ? "max-w-3xl" : "max-w-lg"
+          }`}
+        >
           <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-4">
             <div>
               <Dialog.Title className="text-lg font-semibold">

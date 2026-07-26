@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 6 — complete Hosted Zones frontend workflow.**
+**Case 7 — complete DNS Records frontend workflow.**
 
 Available now:
 
@@ -21,6 +21,10 @@ Available now:
   URL-driven pagination, refresh, and page-scoped selection
 - Public/private Hosted Zone creation, detail summary, comment editing, typed
   delete confirmation, persisted name-server display, and copy actions
+- Real DNS record-set table, URL-driven search/type/routing/alias filters,
+  backend sorting, pagination, refresh, and user-record selection
+- Type-aware creation for A, AAAA, CNAME, TXT, MX, NS, PTR, SRV, and CAA;
+  values/TTL editing; deletion; copying; and protected system NS/SOA display
 - Radix focus-managed dialogs and accessible Sonner notifications
 - Vitest and React Testing Library coverage for API, authentication, login, route
   protection, storage, and navigation foundations
@@ -47,13 +51,13 @@ Available now:
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-The DNS Record frontend workflow remains deferred to Case 7.
+Hosted Zone and DNS Record P0 management workflows are now available end to end.
 
 ## Remaining planned work
 
-- Route53-inspired DNS Record tables and forms
-- URL-backed DNS Record search, filters, sorting, and pagination
-- DNS Record confirmation, loading, error, and empty states
+- Visual and accessibility audit across completed workflows
+- CI and deployment hardening
+- Final screenshots, documentation, and QA
 - Vercel frontend plus one-worker Railway backend deployment
 
 See the [implementation plan](docs/implementation-plan.md) for case-by-case
@@ -247,6 +251,7 @@ Implemented frontend routes:
 - `/route53/hosted-zones`
 - `/route53/hosted-zones/new`
 - `/route53/hosted-zones/{zoneId}`
+- `/route53/hosted-zones/{zoneId}/records`
 - `/route53/traffic-policies` (placeholder)
 - `/route53/health-checks` (placeholder)
 - `/route53/resolver` (placeholder)
@@ -271,9 +276,29 @@ records and no public name servers. Neither behavior publishes real DNS or
 creates a VPC.
 
 The detail page supports copying IDs/name servers, editing only the description,
-and deleting after typing the exact canonical zone name. Deletion also removes
-all record sets stored in the clone. DNS Record table and form workflows are
-deliberately absent until Case 7.
+deleting after typing the exact canonical zone name, and opening the nested
+records workflow. Deletion also removes all record sets stored in the clone.
+
+## DNS Record frontend workflow
+
+Open a Hosted Zone and select **Manage records**, or navigate directly to
+`/route53/hosted-zones/{zoneId}/records`. The page shows real persisted API data,
+including generated NS and SOA system records for public zones. Search matches
+record names and values; readable type, SIMPLE policy, alias status, page, page
+size, and sorting are URL-backed.
+
+Create record opens a type-aware editor for `A`, `AAAA`, `CNAME`, `TXT`, `MX`,
+`NS`, `PTR`, `SRV`, and `CAA`. Enter one record-set value per line; empty lines
+are removed and exact trimmed duplicates are preserved only once. The backend
+canonicalises relative/apex names and performs authoritative type validation,
+CNAME conflict checks, and ownership checks. SOA is internal, alias creation is
+unsupported, and only SIMPLE routing is available.
+
+User-managed records can update values and TTL or be removed through a
+confirmation dialog. Generated NS/SOA records remain visible and copyable but
+their selection, edit, and delete actions are disabled. Successful create/delete
+operations refresh Hosted Zone aggregate counts. None of these operations
+publishes or resolves real DNS.
 
 ## Commands
 
@@ -334,14 +359,13 @@ The implemented and planned API is documented in the
 
 ## Current limitations
 
-- Hosted Zone management is complete in the frontend; DNS Record management
-  still requires direct API use until Case 7.
+- Hosted Zone and DNS Record P0 management are complete in the frontend.
 - Traffic policies, health checks, resolver, and profiles are explicit,
   non-functional placeholders.
 - The application stores mocked control-plane data and does not publish or
   resolve real DNS.
 - Alias targets and non-simple routing policies are outside the assignment.
-- CI and live Vercel/Railway configuration are deferred to Case 10.
+- Visual/accessibility audit, CI, and live Vercel/Railway configuration remain.
 
 ## Licence
 

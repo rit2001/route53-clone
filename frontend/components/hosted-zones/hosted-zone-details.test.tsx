@@ -282,9 +282,14 @@ describe("HostedZoneDetails", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("does not fabricate a DNS records table", () => {
+  it("links to record management without fabricating a records table", () => {
     render(<HostedZoneDetails zoneId="ZPUBLIC" />);
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    expect(screen.getByText(/available in Case 7/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Manage records" }),
+    ).toHaveAttribute(
+      "href",
+      "/route53/hosted-zones/ZPUBLIC/records",
+    );
   });
 });

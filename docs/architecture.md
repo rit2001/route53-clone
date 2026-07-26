@@ -163,6 +163,36 @@ management for edit and typed-confirmation deletion, and Sonner supplies
 screen-reader-announced transient success/copy notifications. Errors remain
 inline as well as transient.
 
+### Frontend DNS Record data flow
+
+The nested records route resolves Hosted Zone context and uses an independent
+URL-state parser for record search, readable type, SIMPLE routing, alias status,
+pagination, and allowlisted sorting. The canonical parameter object is part of
+the zone-scoped TanStack Query key; filtering and sorting never happen on a
+partial client page.
+
+```mermaid
+flowchart TD
+    URL[Records URL state] --> Query[TanStack Query]
+    Query --> Client[Authenticated DNS Record API]
+    Client --> API[FastAPI validation and ownership]
+    API --> SQLite[(SQLite record set)]
+    Mutation[Create / update / delete] --> Client
+    Mutation --> Records[Invalidate zone record lists]
+    Mutation --> Counts[Refresh Hosted Zone counts when cardinality changes]
+```
+
+List GETs can retry one transient failure and keep previous page data. Record
+mutations never retry. Create and delete invalidate the zone detail and all
+Hosted Zone lists so aggregate counts remain correct; update invalidates only
+record data because cardinality is unchanged. System NS/SOA protection exists in
+both the frontend controls and authoritative backend service.
+
+React Hook Form and Zod parse one value per line, remove empty lines, stably
+deduplicate exact trimmed input, and enforce bounded structural constraints.
+FastAPI remains responsible for record-name canonicalisation, supported DNS
+formats, CNAME conflicts, ownership, and database transactions.
+
 ## Hosted-zone lifecycle
 
 Hosted-zone requests reuse the authenticated `User` resolved from the opaque
