@@ -102,15 +102,21 @@ Success criteria:
 - Preserve backend validation as authoritative and render its errors clearly.
 - Verify keyboard and screen-reader operation for dynamic value controls.
 
-## Case 8: Search, filtering, pagination and bulk selection
+## Case 8: Production deployment readiness
+
+**Status: complete.**
 
 Success criteria:
 
-- Drive list search, filters, sort, page, and page size from URL parameters.
-- Keep API queries and navigation stable across refresh/back/forward.
-- Add compact result counts, filter reset, and accessible sortable headers.
-- Add local-state row selection and only contract-supported bulk actions.
-- Test combined query parameters and filtered-empty behaviour.
+- Start Railway through a fail-fast migrate, idempotent seed, and one-worker
+  Uvicorn sequence.
+- Persist production SQLite data on a Railway volume mounted at `/data`.
+- Restrict CORS to one configured frontend origin and validate the Vercel API URL.
+- Keep local Compose startup and its persistent development volume functional.
+- Document exact Railway/Vercel configuration and deployment acceptance checks.
+
+Search, filtering, sorting, pagination, and page-scoped selection were delivered
+within Cases 6 and 7. Bulk product operations remain deliberately out of scope.
 
 ## Case 9: Visual-polish and accessibility pass
 
@@ -124,16 +130,19 @@ Success criteria:
 - Remove placeholder UI that distracts from P0; retain only honest labels.
 - Validate loading, error, empty, overflow, and long-DNS-value edge cases.
 
-## Case 10: Docker, CI and deployment
+## Case 10: CI and live-deployment verification
 
 Success criteria:
 
-- Review and harden both Dockerfiles and Compose configuration.
 - Add CI for backend tests plus frontend lint, type checking, and builds.
-- Configure Vercel frontend deployment and Railway backend deployment.
-- Mount Railway persistence at `/data`, set the production database URL, and run
-  exactly one Uvicorn worker.
-- Document migration and rollback procedures and verify deployed health/CORS.
+- Connect the repository to the prepared Vercel and Railway services.
+- Execute the production checklist against the assigned public URLs.
+- Verify deployed health, CORS, restart persistence, and browser workflows.
+- Record rollback and operational outcomes without adding product scope.
+
+The container, persistent-volume, one-worker startup, environment validation, and
+deployment documentation were completed early in Case 8 because production
+readiness became the immediate priority.
 
 ## Case 11: README, screenshots and final QA
 

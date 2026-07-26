@@ -8,21 +8,32 @@ from app.core.config import get_settings
 from app.models.base import Base
 
 settings = get_settings()
+SQLITE_BUSY_TIMEOUT_SECONDS = 30
+SQLITE_BUSY_TIMEOUT_MILLISECONDS = SQLITE_BUSY_TIMEOUT_SECONDS * 1000
 
 
-def _enable_sqlite_foreign_keys(
+def _configure_sqlite_connection(
     dbapi_connection: Any,
     _: Any,
 ) -> None:
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute(f"PRAGMA busy_timeout={SQLITE_BUSY_TIMEOUT_MILLISECONDS}")
+    cursor.execute("PRAGMA journal_mode=WAL")
     cursor.close()
 
 
 def create_database_engine(database_url: str) -> Engine:
     """Create an engine with the connection behaviour required by its dialect."""
     is_sqlite = database_url.startswith("sqlite")
-    connect_args = {"check_same_thread": False} if is_sqlite else {}
+    connect_args = (
+        {
+            "check_same_thread": False,
+            "timeout": SQLITE_BUSY_TIMEOUT_SECONDS,
+        }
+        if is_sqlite
+        else {}
+    )
     database_engine = create_engine(
         database_url,
         connect_args=connect_args,
@@ -33,7 +44,7 @@ def create_database_engine(database_url: str) -> Engine:
         event.listen(
             database_engine,
             "connect",
-            _enable_sqlite_foreign_keys,
+            _configure_sqlite_connection,
         )
 
     return database_engine

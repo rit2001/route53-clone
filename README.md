@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 7 — complete DNS Records frontend workflow.**
+**Case 8 — Railway and Vercel production deployment readiness.**
 
 Available now:
 
@@ -48,7 +48,11 @@ Available now:
 - CNAME coexistence rules and read-only protection for generated NS/SOA records
 - Record search, type/routing/alias filters, allowlisted sorting, and pagination
 - Backend API, security, seed, persistence, cascade, and migration tests
-- Local Dockerfiles and Docker Compose configuration
+- Production backend entrypoint with automatic migration, idempotent seed, and
+  exactly one Uvicorn worker
+- Railway health/restart configuration and `/data` persistent-volume contract
+- Vercel-safe production API URL validation and bounded CORS configuration
+- Local production-like Dockerfiles and persistent Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
 Hosted Zone and DNS Record P0 management workflows are now available end to end.
@@ -56,9 +60,9 @@ Hosted Zone and DNS Record P0 management workflows are now available end to end.
 ## Remaining planned work
 
 - Visual and accessibility audit across completed workflows
-- CI and deployment hardening
+- CI and live-deployment acceptance verification
 - Final screenshots, documentation, and QA
-- Vercel frontend plus one-worker Railway backend deployment
+- Manual connection of the repository to the Railway and Vercel accounts
 
 See the [implementation plan](docs/implementation-plan.md) for case-by-case
 acceptance criteria.
@@ -105,8 +109,9 @@ cp .env.example .env
 
 The frontend reads `NEXT_PUBLIC_API_URL`, which must be an absolute HTTP(S) URL
 ending in `/api/v1`. Local development defaults to
-`http://localhost:8000/api/v1`. Set the deployed API URL as a public environment
-variable in Vercel; never place secrets in `NEXT_PUBLIC_*`.
+`http://localhost:8000/api/v1`. A deployed production origin rejects a missing,
+localhost, or insecure API URL. Set the Railway HTTPS API URL as a public
+environment variable in Vercel; never place secrets in `NEXT_PUBLIC_*`.
 
 Start the backend:
 
@@ -330,9 +335,96 @@ docker compose config
 docker compose up --build
 ```
 
-Compose uses a local named volume mounted at `/app/data`. Railway will eventually
-use its own persistent volume at `/data`; production must run exactly one Uvicorn
-worker.
+The backend entrypoint migrates and idempotently seeds before starting. Compose
+uses a named volume mounted at `/app/data`, so `docker compose restart backend`
+retains local container data. Railway uses a separate persistent volume at
+`/data`; it is never mounted locally.
+
+## Production deployment
+
+Railway and Vercel need each other's final public URL. Deploy the backend first
+with a temporary planned Vercel origin, deploy Vercel with the resulting Railway
+URL, then set Railway's CORS origin to the exact final Vercel origin and redeploy
+the backend.
+
+### Railway backend
+
+1. Create a Railway project from this GitHub repository.
+2. Create one service and set its **Root Directory** to `backend`. Railway then
+   uses `backend/Dockerfile`.
+3. In the service settings, set the Railway **Config File Path** to
+   `/backend/railway.json`. Railway config-file discovery does not follow a
+   monorepo Root Directory automatically.
+4. Attach one persistent volume to that service and mount it at exactly `/data`.
+5. Configure these service variables:
+
+   ```text
+   APP_ENV=production
+   DATABASE_URL=sqlite:////data/route53.db
+   FRONTEND_ORIGIN=https://YOUR-PROJECT.vercel.app
+   SESSION_TTL_HOURS=168
+   DEMO_USER_NAME=Route53 Demo User
+   DEMO_USER_EMAIL=demo@route53.local
+   DEMO_USER_PASSWORD=Route53Demo123!
+   LOG_LEVEL=INFO
+   RAILWAY_RUN_UID=0
+   ```
+
+   Railway provides `PORT`; do not override the image with a multi-worker start
+   command. The checked-in entrypoint always uses one worker. Railway mounts
+   volumes as root, so its documented `RAILWAY_RUN_UID=0` setting is required
+   for write access; local and other container runs retain the image's non-root
+   `app` user.
+6. Confirm the health-check path is `/api/v1/health` and deploy.
+7. Inspect logs in order: Alembic upgrades to head, the demo user is created or
+   already exists, and Uvicorn starts on Railway's port.
+8. Verify health:
+
+   ```bash
+   curl https://YOUR-RAILWAY-SERVICE.up.railway.app/api/v1/health
+   ```
+
+9. Verify the public mocked login without saving the returned token:
+
+   ```bash
+   curl -X POST \
+     https://YOUR-RAILWAY-SERVICE.up.railway.app/api/v1/auth/login \
+     -H "Content-Type: application/json" \
+     -d '{"email":"demo@route53.local","password":"Route53Demo123!"}'
+   ```
+
+The entrypoint uses fail-fast shell semantics: a failed migration or seed stops
+the deployment before the API starts. Seeding is safe on every restart and never
+resets an existing user's password. Before a schema rollback, create a Railway
+volume backup and deploy the matching older application image. Do not copy only
+the live `route53.db` file while the service is running because SQLite WAL data
+may not yet be checkpointed. Do not run `alembic downgrade` against production
+casually; the initial schema downgrade removes business tables.
+
+### Vercel frontend
+
+1. Import the same GitHub repository into Vercel.
+2. Set the Vercel **Root Directory** to `frontend`; no `vercel.json` is needed.
+3. Add this Production environment variable:
+
+   ```text
+   NEXT_PUBLIC_API_URL=https://YOUR-RAILWAY-SERVICE.up.railway.app/api/v1
+   ```
+
+4. Deploy and copy the final origin, for example
+   `https://YOUR-PROJECT.vercel.app`.
+5. Set Railway `FRONTEND_ORIGIN` to that exact origin with no path or trailing
+   slash, then redeploy the backend.
+6. Verify login, refresh-based session restoration, Hosted Zone CRUD, DNS Record
+   CRUD, and direct refreshes of nested frontend routes.
+7. Restart the Railway service and confirm the same zones and records remain.
+
+Preview Vercel origins are not wildcarded. To test a preview against the backend,
+deliberately set Railway `FRONTEND_ORIGIN` to that one exact preview origin, then
+restore the production origin. The backend never enables unrestricted CORS.
+
+Use the [production deployment checklist](docs/deployment-checklist.md) for the
+final provider-side acceptance pass.
 
 ## API foundation
 
@@ -365,7 +457,8 @@ The implemented and planned API is documented in the
 - The application stores mocked control-plane data and does not publish or
   resolve real DNS.
 - Alias targets and non-simple routing policies are outside the assignment.
-- Visual/accessibility audit, CI, and live Vercel/Railway configuration remain.
+- Visual/accessibility audit, CI, and the manual live Vercel/Railway deployment
+  remain.
 
 ## Licence
 

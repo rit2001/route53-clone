@@ -52,8 +52,9 @@ Cross-feature infrastructure remains under `app/core`.
 
 SQLite is the system of record. SQLAlchemy 2.x supplies the persistence boundary,
 while Alembic owns schema changes. Foreign keys are enabled on every connection.
-The local URL is configurable; production will use
-`sqlite:////data/route53.db`.
+File-backed connections also use WAL journaling and a 30-second busy timeout to
+reduce transient lock failures under the assignment's bounded concurrency. The
+local URL is configurable; production uses `sqlite:////data/route53.db`.
 
 ## Modular-monolith decision
 
@@ -267,8 +268,25 @@ persistent volume at `/data`. The backend process must use exactly one Uvicorn
 worker because multiple independent processes can contend for SQLite writes and
 do not share in-process coordination. Railway supplies environment variables,
 including `DATABASE_URL=sqlite:////data/route53.db` and the deployed frontend
-origin. Alembic migrations must run as an explicit deployment step before the
-application starts.
+origin.
+
+The backend image starts through `entrypoint.sh`. With fail-fast shell semantics,
+it runs `alembic upgrade head`, runs the idempotent `python -m app.seed`, and only
+then replaces the shell process with Uvicorn using Railway's `PORT` and exactly
+one worker. A migration or seed failure therefore prevents an unhealthy API from
+starting, while `exec` preserves termination-signal handling. The Railway health
+check targets `/api/v1/health`. The image defaults to its non-root `app` user.
+Railway volumes are root-mounted, so that service explicitly sets the
+provider-supported `RAILWAY_RUN_UID=0`; the entrypoint verifies `/data` is
+writable before migrating.
+
+FastAPI accepts one normalized `FRONTEND_ORIGIN`; production requires HTTPS.
+CORS permits bearer-token and JSON request headers plus only the HTTP methods
+used by this API. It does not enable credentialed cookie requests. Vercel embeds
+the public Railway API base URL at build time through `NEXT_PUBLIC_API_URL`. The
+frontend rejects a missing, local, or insecure API URL when used from a deployed
+production origin. The explicit localhost pair remains available for local
+container testing.
 
 The local Compose volume is mounted at `/app/data`; it intentionally does not
 imitate or mount Railway's production `/data` volume.

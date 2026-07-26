@@ -46,6 +46,7 @@ async def test_cors_allows_configured_frontend(client: AsyncClient) -> None:
         headers={
             "Origin": "http://localhost:3000",
             "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "Authorization, Content-Type",
         },
     )
 
@@ -53,4 +54,10 @@ async def test_cors_allows_configured_frontend(client: AsyncClient) -> None:
     assert response.headers["access-control-allow-origin"] == (
         "http://localhost:3000"
     )
-    assert response.headers["access-control-allow-credentials"] == "true"
+    assert "access-control-allow-credentials" not in response.headers
+    assert "authorization" in response.headers[
+        "access-control-allow-headers"
+    ].lower()
+    assert "content-type" in response.headers[
+        "access-control-allow-headers"
+    ].lower()
