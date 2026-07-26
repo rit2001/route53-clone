@@ -134,6 +134,35 @@ model and normally use hardened, secure, HTTP-only cookie sessions plus CSRF and
 content-security controls. This assignment deliberately does not represent that
 choice as production authentication.
 
+### Frontend Hosted Zone data flow
+
+Hosted Zone server state is owned by TanStack Query. Table controls first
+canonicalise URL search parameters; the complete list state forms the query key
+and is passed to the authenticated API module without client-side filtering or
+sorting.
+
+```mermaid
+flowchart TD
+    URL[URL search parameters] --> Key[TanStack Query key]
+    Key --> Client[Authenticated Hosted Zone API client]
+    Client --> API[FastAPI Hosted Zone service]
+    API --> SQLite[(SQLite)]
+    Mutation[Create / update / delete] --> Client
+    Mutation --> Cache[Invalidate lists and update/remove detail cache]
+```
+
+Search, type, page, page size, sort field, and direction survive refresh and
+browser navigation. Invalid values fall back locally before a request. Query
+placeholder data retains the prior page during pagination and background
+refreshes. Mutations never retry automatically; successful mutations update or
+remove detail cache entries and invalidate every Hosted Zone list.
+
+React Hook Form and Zod own basic create/edit form constraints while FastAPI
+remains authoritative for DNS domain validation. Radix Dialog supplies focus
+management for edit and typed-confirmation deletion, and Sonner supplies
+screen-reader-announced transient success/copy notifications. Errors remain
+inline as well as transient.
+
 ## Hosted-zone lifecycle
 
 Hosted-zone requests reuse the authenticated `User` resolved from the opaque

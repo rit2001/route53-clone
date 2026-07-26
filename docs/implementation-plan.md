@@ -79,6 +79,8 @@ Success criteria:
 
 ## Case 6: Hosted Zones frontend workflow
 
+**Status: complete.**
+
 Success criteria:
 
 - Use TanStack Query to implement hosted-zone list, create, detail, edit-comment,

@@ -18,13 +18,15 @@ console, not a marketing dashboard.
 
 Copied AWS logos, screenshots, or proprietary assets are prohibited.
 
-## Implemented Case 5 foundation
+## Implemented frontend foundation
 
-The frontend now exposes:
+The frontend exposes:
 
 - `/login`
 - `/route53/dashboard`
 - `/route53/hosted-zones`
+- `/route53/hosted-zones/new`
+- `/route53/hosted-zones/{zoneId}`
 - `/route53/traffic-policies`
 - `/route53/health-checks`
 - `/route53/resolver`
@@ -35,8 +37,7 @@ and `/route53` selects the dashboard. The Route 53 routes are protected by a
 client gate because the mocked bearer token is intentionally browser-local and
 unavailable to server middleware. Protected content is not rendered before
 authentication finishes. Traffic policies, health checks, resolver, and profiles
-are honest “Coming soon” surfaces; Hosted zones identifies Case 6 without
-fabricating data.
+remain honest “Coming soon” surfaces.
 
 Implemented visual tokens include a charcoal global header, white sidebar and
 surfaces, neutral-grey page, thin grey borders, compact text, blue links,
@@ -125,15 +126,30 @@ Component tests query by accessible roles and names to protect these contracts.
 
 ## Hosted Zones table
 
-The primary hosted-zone page includes a title, short operational description,
-create action, result count, toolbar, and bordered table. Columns are selection,
-domain name, type, record count, comment, and created date. Domain names are blue
-links. Rows are compact and keyboard navigable. Selection enables only relevant
-bulk actions; Case 8 will define bulk behaviour.
+Case 6 implements the primary hosted-zone page with a title, real result count,
+two-row toolbar, and bordered table. Columns are selection, hosted-zone name,
+type, record count, description, ID, and created time. Name, type, created, and
+updated are supported backend sort fields; visible sortable columns use buttons
+and `aria-sort`. Names are canonical blue links and IDs offer quiet copy controls.
+
+The table is desktop-first with a controlled, keyboard-focusable horizontal
+scroll region below the breakpoint rather than a card conversion. Rows have
+visible separators, hover and selected treatments, compact UTC timestamps, and
+full values in titles where truncation is possible.
+
+Selection is local and scoped to the current URL-derived page. The header
+checkbox selects only visible rows. Exactly one selection enables the shared
+delete dialog; multiple selection disables deletion and explains that bulk
+operations are not included.
+
+The toolbar keeps Refresh and Delete on the left and the restrained-orange Create
+action on the right. Refresh retains rows and all URL state while displaying a
+small busy indicator.
 
 ## Hosted Zone creation form
 
-The form is a white bordered surface with:
+The implemented `/route53/hosted-zones/new` form is a white bordered surface
+using React Hook Form and Zod with:
 
 - Domain name, including guidance about accepted DNS format
 - Public/private zone-type choice with concise consequences
@@ -142,13 +158,27 @@ The form is a white bordered surface with:
 
 Validation appears next to fields and in an accessible summary when submission
 fails. Successful creation navigates to zone details and raises a toast.
+Public is the deliberate default. Selecting Private reveals a mocked-network
+notice and never sends a fake VPC field. Comments are counted and bounded at 256
+characters; domain validation remains authoritative on the backend. Duplicate,
+validation, network, and safe general errors preserve every entered value.
 
 ## Hosted Zone details
 
-The page shows breadcrumbs, zone name, type/status metadata, ID, comment, created
-time, and record count. Primary tabs or sections separate Records and Zone
-details. The delete-zone action is visually secondary and isolated from routine
-record creation.
+The dynamic detail page shows breadcrumbs, canonical name, compact type badge,
+ID, description, created/updated UTC times, record count, and persisted name
+servers from the API. Public zones expose individual and copy-all name-server
+controls; private zones explain that no public name servers exist. A notice
+states that the clone does not resolve real DNS.
+
+Manage records is visibly disabled and described as Case 7 work; no record table
+is fabricated. API-derived 404s use an ownership-safe not-found state. Other
+failures remain retryable in page context.
+
+Edit description opens a Radix dialog prepopulated from detail data. It permits
+clearing or trimming only the 256-character comment and explains name/type
+immutability. Successful PATCH responses refresh lists and update detail
+immediately.
 
 ## Records table
 
@@ -170,25 +200,34 @@ when data would be lost.
 ## Search, filters, sorting, and pagination
 
 List state belongs in URL search parameters so views are shareable and browser
-navigation works. Search submits on Enter and has a clear action. Filters show
-their active state and can be reset together. Sortable column headers expose
-direction to assistive technology. Pagination includes page size, previous/next,
-current range, and total, while retaining search/filter/sort parameters.
+navigation works. Case 6 omits default parameters and safely falls back from
+invalid values. Changing search, type, page size, or sorting resets page to one;
+direct pagination does not.
+
+A 300 ms trimmed search debounce avoids per-keystroke API requests. Empty search
+and clear controls remove the parameter. Type filtering uses an accessible native
+select. Clearing filters removes their parameters while deliberately preserving
+unrelated safe parameters.
+
+Sortable column headers expose direction to assistive technology and request
+backend sorting. Pagination reports the visible range and total with compact
+Previous/Next buttons and page sizes 10, 25, 50, and 100.
 
 ## Destructive confirmations
 
-Deleting a zone or record opens a focus-trapped confirmation dialog. It names the
-resource, explains cascade impact, and requires explicit confirmation. Zone
-deletion may require typing the zone name. Cancel receives initial focus where
-appropriate; Escape closes when no submission is active. Buttons cannot be
-double-submitted.
+Deleting a zone opens the same focus-managed Radix confirmation from the list or
+details. It names the zone, type, record count, cascade effect, and system-record
+impact without implying real delegation. The destructive action stays disabled
+until the exact canonical trailing-dot name is typed. Pending deletion locks
+dismissal and controls; failure stays inline and recoverable; success invalidates
+lists, removes detail cache, and returns detail callers to the list.
 
 ## Toasts
 
-Short success and error notifications appear in a consistent live region. They
-describe the completed operation and resource rather than saying only “Success”.
-Persistent or actionable errors also remain near the affected content; toasts
-are not the sole error channel.
+Sonner provides short success, refresh, update, deletion, and copy notifications
+in a consistent accessible live region. They describe the operation and resource
+rather than saying only “Success”. Persistent or actionable errors also remain
+near the affected content; notifications are not the sole error channel.
 
 ## Loading, error, and empty states
 
@@ -199,6 +238,25 @@ are not the sole error channel.
 - A first-use empty state explains hosted zones and offers creation.
 - A filtered empty state says no results matched and offers to clear filters.
 - Controls expose disabled and busy states during mutations.
+
+Case 6 implements each state. Initial list loading keeps page and toolbar context
+with compact skeleton rows. Background fetches retain the table. Network failures
+mention backend connectivity and offer Retry. First-use and filtered-empty states
+have distinct copy and actions. Detail loading, not-found, and retryable failures
+use the same operational surfaces.
+
+## Hosted Zone responsive and accessibility decisions
+
+Toolbar controls wrap into compact rows; forms remain at an
+infrastructure-setting width; dialogs are viewport-bounded; details collapse from
+two columns to one; and the table scrolls inside its labelled region without
+causing global overflow. Existing mobile service navigation remains unchanged.
+
+Semantic tables and captions, labelled search/filter/select controls, labelled
+row/header checkboxes, `aria-sort`, status announcements, associated form errors,
+native buttons, disabled-state descriptions, dialog focus trapping/restoration,
+Escape dismissal, and reduced-motion skeleton/spinner behaviour are covered by
+component tests.
 
 ## Placeholder sections
 

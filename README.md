@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 5 — Route 53 application shell and mocked frontend authentication.**
+**Case 6 — complete Hosted Zones frontend workflow.**
 
 Available now:
 
@@ -17,6 +17,11 @@ Available now:
 - Typed native-fetch API client, standard backend-error parsing, and local session
   storage with expiry handling
 - TanStack Query provider plus React Hook Form and Zod form infrastructure
+- Real Hosted Zone list, debounced search, public/private filter, backend sorting,
+  URL-driven pagination, refresh, and page-scoped selection
+- Public/private Hosted Zone creation, detail summary, comment editing, typed
+  delete confirmation, persisted name-server display, and copy actions
+- Radix focus-managed dialogs and accessible Sonner notifications
 - Vitest and React Testing Library coverage for API, authentication, login, route
   protection, storage, and navigation foundations
 - FastAPI application factory, versioned routing, CORS, and health endpoints
@@ -42,13 +47,13 @@ Available now:
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-Hosted Zone and DNS Record frontend workflows remain deferred to Cases 6 and 7.
+The DNS Record frontend workflow remains deferred to Case 7.
 
 ## Remaining planned work
 
-- Route53-inspired Hosted Zone and DNS Record tables and forms
-- URL-backed frontend search, filters, sorting, and pagination
-- Confirmation dialogs, toasts, and complete loading/error/empty states
+- Route53-inspired DNS Record tables and forms
+- URL-backed DNS Record search, filters, sorting, and pagination
+- DNS Record confirmation, loading, error, and empty states
 - Vercel frontend plus one-worker Railway backend deployment
 
 See the [implementation plan](docs/implementation-plan.md) for case-by-case
@@ -58,7 +63,7 @@ acceptance criteria.
 
 | Area | Foundation |
 | --- | --- |
-| Frontend | Next.js, React, TypeScript, Tailwind CSS, TanStack Query, React Hook Form, Zod, ESLint, npm |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS, TanStack Query, React Hook Form, Zod, Radix Dialog, Sonner, ESLint, npm |
 | Backend | Python, FastAPI, Pydantic Settings, pwdlib/Argon2, SQLAlchemy, Alembic |
 | Testing | pytest, HTTPX ASGI transport, Vitest, React Testing Library |
 | Database | SQLite |
@@ -239,7 +244,9 @@ Implemented frontend routes:
 
 - `/login`
 - `/route53/dashboard`
-- `/route53/hosted-zones` (Case 6 handoff state)
+- `/route53/hosted-zones`
+- `/route53/hosted-zones/new`
+- `/route53/hosted-zones/{zoneId}`
 - `/route53/traffic-policies` (placeholder)
 - `/route53/health-checks` (placeholder)
 - `/route53/resolver` (placeholder)
@@ -249,6 +256,24 @@ The opaque token and expiry are stored under `route53_clone_session`; passwords
 are never persisted. This local-storage design is acceptable only for the public,
 mocked assignment account. A security-sensitive production application would
 reassess the browser threat model and session transport.
+
+## Hosted Zone frontend workflow
+
+After signing in, open `/route53/hosted-zones`. The operational table reads only
+persisted API data. Search matches names and comments through the backend;
+public/private filtering, allowlisted sorting, page, and page size live in URL
+parameters so refresh and browser navigation retain the view.
+
+Create accepts a domain, optional description, and public/private type. The
+backend canonicalises the domain. A new public zone normally reports two system
+record sets and four persisted mocked name servers; a private zone reports zero
+records and no public name servers. Neither behavior publishes real DNS or
+creates a VPC.
+
+The detail page supports copying IDs/name servers, editing only the description,
+and deleting after typing the exact canonical zone name. Deletion also removes
+all record sets stored in the clone. DNS Record table and form workflows are
+deliberately absent until Case 7.
 
 ## Commands
 
@@ -309,8 +334,8 @@ The implemented and planned API is documented in the
 
 ## Current limitations
 
-- The frontend authenticates and provides the operational shell, but Hosted Zone
-  and DNS Record management still require direct API use until Cases 6 and 7.
+- Hosted Zone management is complete in the frontend; DNS Record management
+  still requires direct API use until Case 7.
 - Traffic policies, health checks, resolver, and profiles are explicit,
   non-functional placeholders.
 - The application stores mocked control-plane data and does not publish or

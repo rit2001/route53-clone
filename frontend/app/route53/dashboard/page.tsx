@@ -49,8 +49,8 @@ export default function DashboardPage() {
               <h3 className="font-semibold">Hosted zones</h3>
             </div>
             <p className="mt-2 text-sm leading-5 text-[var(--muted)]">
-              Hosted-zone management will connect to the existing authenticated
-              API in the next implementation stage.
+              Create, search, inspect, update, and delete persisted public or
+              private hosted zones through the authenticated API.
             </p>
             <Link
               className="mt-3 inline-flex items-center gap-1 text-sm font-semibold hover:underline"
