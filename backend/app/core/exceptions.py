@@ -55,3 +55,38 @@ def internal_error() -> APIError:
         code="INTERNAL_ERROR",
         message="An unexpected server error occurred.",
     )
+
+
+def hosted_zone_not_found_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_404_NOT_FOUND,
+        code="HOSTED_ZONE_NOT_FOUND",
+        message="The hosted zone was not found.",
+    )
+
+
+def hosted_zone_already_exists_error(
+    name: str,
+    zone_type: str,
+) -> APIError:
+    return APIError(
+        status_code=status.HTTP_409_CONFLICT,
+        code="HOSTED_ZONE_ALREADY_EXISTS",
+        message=f"A {zone_type} hosted zone already exists for {name}",
+    )
+
+
+def hosted_zone_creation_failed_error() -> APIError:
+    return APIError(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        code="HOSTED_ZONE_CREATION_FAILED",
+        message="The hosted zone could not be created.",
+    )
+
+
+def domain_validation_error(message: str) -> APIError:
+    return APIError(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        code="VALIDATION_ERROR",
+        message=message,
+    )

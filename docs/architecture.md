@@ -104,6 +104,42 @@ to commit or roll back; API routes never manage transactions. Failed login does
 not mutate the database, successful login commits one session, and logout commits
 one deletion.
 
+## Hosted-zone lifecycle
+
+Hosted-zone requests reuse the authenticated `User` resolved from the opaque
+session. Every repository predicate includes that user ID, including detail,
+update, and delete lookups. Missing and unowned identifiers therefore have one
+indistinguishable not-found response.
+
+```mermaid
+flowchart TD
+    User[Authenticated user] --> Normalize[Validate and canonicalise domain]
+    Normalize --> Zone[Insert hosted zone]
+    Zone --> Type{Public zone?}
+    Type -->|Yes| NS[Insert mocked NS system record]
+    NS --> SOA[Insert mocked SOA system record]
+    Type -->|No| Commit[Single transaction commit]
+    SOA --> Commit
+    Zone -. failure .-> Rollback[Roll back complete transaction]
+    NS -. failure .-> Rollback
+    SOA -. failure .-> Rollback
+```
+
+Names are stored as lowercase absolute DNS names with one trailing dot. Public
+zones receive deterministic, locally generated NS and SOA record sets; these are
+persisted application data and do not delegate or publish real DNS. Private zones
+have no generated records or VPC model in the current assignment contract.
+
+Hosted-zone list queries apply ownership, search, type filters, an allowlisted
+sort, stable ID tie-breaking, and offset pagination in SQLAlchemy. One aggregate
+query returns the page with record counts and one query returns the total; the
+service does not issue a record-count query per zone.
+
+Repositories flush but do not commit. The hosted-zone service owns each
+transaction: public-zone creation commits the zone plus NS and SOA together,
+while comment updates and cascade deletes each commit once. Integrity conflicts
+are rolled back and converted to the stable API contract.
+
 ## Deployment
 
 Vercel hosts the Next.js frontend. Railway runs the FastAPI container and mounts a

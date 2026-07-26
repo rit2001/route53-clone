@@ -30,7 +30,7 @@ class SessionRepository:
     def get_by_token_hash(self, token_hash: str) -> Session | None:
         statement = (
             select(Session)
-            .options(joinedload(Session.user))
+            .options(joinedload(Session.user).raiseload("*"))
             .where(Session.token_hash == token_hash)
         )
         return self._db.scalar(statement)

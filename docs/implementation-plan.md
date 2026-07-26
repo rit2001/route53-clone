@@ -39,6 +39,8 @@ Success criteria:
 
 ## Case 3: Hosted Zone backend CRUD and tests
 
+**Status: complete.**
+
 Success criteria:
 
 - Implement all documented hosted-zone endpoints and Pydantic schemas.

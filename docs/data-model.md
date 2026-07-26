@@ -147,7 +147,7 @@ Constraints and indexes:
 
 One user may therefore own one public and one private zone with the same name,
 while duplicate zones of the same type are rejected. Domain normalisation is
-intentionally not an ORM concern. The future service layer must persist canonical
+intentionally not an ORM concern. Case 3's hosted-zone service persists canonical
 lowercase absolute names such as `example.com.`.
 
 ## `dns_records`
@@ -184,8 +184,9 @@ A row represents one Route53-style record set, not one value. For example, both
 MX targets for `example.com.` live in one JSON array and are written atomically.
 SQLAlchemy's JSON type serialises the list for SQLite and restores it as
 `list[str]`; mutable-list tracking also persists intentional in-place changes.
-Case 4 will validate value syntax, non-empty arrays, zone containment, CNAME
-coexistence, and other DNS rules in the service layer.
+Case 3 uses this representation for its generated public-zone NS and SOA system
+record sets. Case 4 will validate user-created value syntax, non-empty arrays,
+zone containment, CNAME coexistence, and other DNS rules in the service layer.
 
 ## Relationships, loading, and cascades
 
@@ -219,5 +220,6 @@ through its parent zone. Future queries must scope record access through the
 authenticated user's zone and must never trust a client-supplied user ID.
 
 The schema supplies integrity, not business workflows. The authentication service
-owns session transaction boundaries. Future services will own zone creation plus
-system records, zone deletion, and record-set mutations.
+owns session transaction boundaries. The hosted-zone service owns atomic zone
+creation plus public NS/SOA records, comment updates, and cascade deletion.
+Case 4's record service will own user-managed record-set mutations.

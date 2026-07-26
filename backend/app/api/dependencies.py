@@ -13,6 +13,7 @@ from app.core.exceptions import (
 )
 from app.models.user import User
 from app.services.auth import AuthenticatedSession, AuthenticationService
+from app.services.hosted_zone import HostedZoneService
 
 bearer_scheme = HTTPBearer(
     auto_error=False,
@@ -71,3 +72,9 @@ def get_current_user(
     ],
 ) -> User:
     return authenticated.user
+
+
+def get_hosted_zone_service(
+    db: Annotated[Session, Depends(get_db)],
+) -> HostedZoneService:
+    return HostedZoneService(db)

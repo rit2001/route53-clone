@@ -1,7 +1,7 @@
 # API contract
 
-The system and authentication routes are implemented. Hosted-zone and DNS-record
-routes remain planned and must not be treated as available yet.
+The system, authentication, and hosted-zone routes are implemented. General
+DNS-record routes remain planned and must not be treated as available yet.
 
 ## General conventions
 
@@ -85,7 +85,11 @@ Every authentication `401` includes `WWW-Authenticate: Bearer`.
 
 ## Hosted zones
 
-Hosted zone representation:
+All hosted-zone endpoints require a valid opaque bearer session. Every operation
+is scoped to the authenticated user's ID; a missing zone and a zone owned by
+another user return the same `HOSTED_ZONE_NOT_FOUND` response.
+
+List item:
 
 ```json
 {
@@ -99,20 +103,49 @@ Hosted zone representation:
 }
 ```
 
+Detail responses add the persisted mocked name servers:
+
+```json
+{
+  "id": "Z08719372Q4ABCDEF92XY",
+  "name": "example.com.",
+  "zone_type": "PUBLIC",
+  "comment": "Primary application zone",
+  "record_count": 2,
+  "name_servers": [
+    "ns-148.mockdns-18.route53-clone.invalid.",
+    "ns-902.mockdns-48.route53-clone.invalid.",
+    "ns-1214.mockdns-23.route53-clone.invalid.",
+    "ns-1937.mockdns-50.route53-clone.invalid."
+  ],
+  "created_at": "2026-07-26T12:30:00Z",
+  "updated_at": "2026-07-26T12:30:00Z"
+}
+```
+
+The examples communicate the local fake hostname format; actual persisted
+values are deterministically derived from the local hosted-zone ID and are not
+AWS name servers.
+
 ### `GET /api/v1/hosted-zones`
 
-Returns a paginated list owned by the current user.
+Implemented. Returns a paginated list owned by the current user. Record counts
+are calculated by an aggregate query and include system and future user-managed
+record sets.
 
 Parameters:
 
-- `page`: integer, default `1`, minimum `1`
-- `page_size`: integer, default `10`, allowed `10`, `25`, `50`, `100`
-- `search`: case-insensitive partial match on zone name
+- `search`: optional trimmed, case-insensitive partial match on name or comment
 - `zone_type`: optional `PUBLIC` or `PRIVATE`
-- `sort`: `name`, `created_at`, `updated_at`, or `record_count`
-- `order`: `asc` or `desc`
+- `page`: integer, default `1`, minimum `1`
+- `page_size`: integer, default `10`, range `1..100`
+- `sort_by`: `name`, `zone_type`, `created_at`, or `updated_at`; default `name`
+- `sort_order`: `asc` or `desc`; default `asc`
 
-Planned `200 OK` response:
+An empty search is treated as absent. Sorting uses hosted-zone ID as a
+deterministic secondary key so pagination does not repeat rows.
+
+Implemented `200 OK` response:
 
 ```json
 {
@@ -126,7 +159,7 @@ Planned `200 OK` response:
 
 ### `POST /api/v1/hosted-zones`
 
-Planned request:
+Implemented request:
 
 ```json
 {
@@ -136,18 +169,42 @@ Planned request:
 }
 ```
 
-Returns `201 Created` with the hosted zone representation and a `Location`
-header. Public zones include generated NS and SOA record sets in their
-`record_count`.
+Unknown fields are rejected. `name` and `zone_type` are required; `comment` is
+optional, trimmed, limited to 256 characters, and stored as `null` when empty.
+The client cannot set ownership, identifiers, counts, or timestamps.
+
+The service strips surrounding whitespace from the name, lowercases it,
+validates ASCII DNS labels, and stores exactly one trailing dot. It rejects URL
+schemes, paths, ports, email addresses, wildcards, empty labels, invalid
+hyphens, overlong names or labels, non-ASCII names, and top-level-only values.
+No DNS lookup occurs.
+
+Returns `201 Created` with the detail representation and a `Location` header.
+For a public zone, the same transaction creates:
+
+- one `NS` system record set with four deterministic, unique mocked name servers
+  and TTL `172800`;
+- one `SOA` system record set using the first name server and TTL `900`.
+
+Both record sets are simple-routing, non-alias, and marked `is_system=true`.
+The zone plus both record sets commit atomically. Private zones currently create
+no system records or mocked VPC fields and return `record_count: 0` with an empty
+`name_servers` list.
+
+The same user cannot create the same canonical name and type twice. Public and
+private variants may coexist, and another user may independently use the same
+name and type. A duplicate returns `409 HOSTED_ZONE_ALREADY_EXISTS`.
 
 ### `GET /api/v1/hosted-zones/{zone_id}`
 
-Returns `200` with the hosted zone when it belongs to the current user. Missing or
-unowned zones return `404` so ownership is not disclosed.
+Implemented. Returns `200` with the detail representation when the zone belongs
+to the current user. `name_servers` comes from the persisted system NS record;
+it is never regenerated on read. Missing or unowned zones return
+`404 HOSTED_ZONE_NOT_FOUND`, so ownership is not disclosed.
 
 ### `PATCH /api/v1/hosted-zones/{zone_id}`
 
-Planned request (at least one field):
+Implemented request:
 
 ```json
 {
@@ -155,13 +212,27 @@ Planned request (at least one field):
 }
 ```
 
-Only mutable fields are accepted. Zone name and type are immutable after
-creation. Returns `200` with the updated representation.
+Only `comment` is mutable. It is trimmed, limited to 256 characters, and may be
+cleared with `null` or whitespace. An empty object and unknown or immutable
+fields are rejected with `422`. Name, type, ID, and owner are immutable to match
+Route53-style zone semantics. Returns `200` with the updated detail response
+without changing or recreating records.
 
 ### `DELETE /api/v1/hosted-zones/{zone_id}`
 
-Deletes the zone and its record sets in one transaction. Returns
-`204 No Content`. Missing or unowned zones return `404`.
+Implemented. Deletes the owned zone and all associated system and user-managed
+record sets through the database cascade. Returns `204 No Content` with no body.
+Missing or unowned zones return `404 HOSTED_ZONE_NOT_FOUND`.
+
+Hosted-zone application errors:
+
+- `HOSTED_ZONE_NOT_FOUND`: `404`
+- `HOSTED_ZONE_ALREADY_EXISTS`: `409`
+- `HOSTED_ZONE_CREATION_FAILED`: safe `500` after a rolled-back creation
+- `VALIDATION_ERROR`: `422` for domain rules enforced by the service
+
+Pydantic field and query validation continues to use FastAPI's standard `422`
+validation-detail list.
 
 ## DNS record sets
 
@@ -276,17 +347,17 @@ Expected application errors use this object. Pydantic request-schema failures
 retain FastAPI's standard `422` validation-detail list so clients receive precise
 field locations and messages.
 
-Common codes include `AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`,
-`INVALID_SESSION`, `SESSION_EXPIRED`, `RESOURCE_NOT_FOUND`,
-`VALIDATION_ERROR`, `DUPLICATE_RESOURCE`, `SYSTEM_RECORD_PROTECTED`, and
-`INTERNAL_ERROR`.
+Implemented codes include `AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`,
+`INVALID_SESSION`, `SESSION_EXPIRED`, `HOSTED_ZONE_NOT_FOUND`,
+`HOSTED_ZONE_ALREADY_EXISTS`, `HOSTED_ZONE_CREATION_FAILED`,
+`VALIDATION_ERROR`, and `INTERNAL_ERROR`. `SYSTEM_RECORD_PROTECTED` remains
+planned for Case 4.
 
 ## HTTP status conventions
 
 - `200 OK`: successful reads, updates, login, and current-session lookup
 - `201 Created`: successful hosted zone or record-set creation
 - `204 No Content`: successful logout or delete
-- `400 Bad Request`: malformed domain input not expressible as field validation
 - `401 Unauthorized`: missing, invalid, expired, or revoked session
 - `404 Not Found`: missing or unowned resource
 - `409 Conflict`: uniqueness conflict or protected system-record operation

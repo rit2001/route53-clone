@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 2 — mocked authentication and persistent opaque sessions.**
+**Case 3 — authenticated Hosted Zone backend CRUD.**
 
 Available now:
 
@@ -19,12 +19,17 @@ Available now:
 - Argon2 password hashing and persistent hashed opaque bearer sessions
 - Login, logout, current-user, and reusable protected-route dependencies
 - Idempotent, environment-configured demo-user seed command
+- Authenticated Hosted Zone list, create, detail, comment update, and delete API
+- Canonical domain validation, ownership isolation, and duplicate protection
+- Hosted Zone search, public/private filtering, allowlisted sorting, and pagination
+- Atomic mocked NS and SOA system-record generation for public zones
+- Aggregate record counts without per-zone count queries
 - Backend API, security, seed, persistence, cascade, and migration tests
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-Hosted zone and DNS record CRUD remain planned but are not implemented yet. The
-frontend login page is also deferred to Case 5.
+General DNS Record CRUD remains planned for Case 4. Frontend authentication and
+Hosted Zone management remain deferred to Cases 5 and 6.
 
 ## Planned features
 
@@ -133,6 +138,30 @@ curl http://localhost:8000/api/v1/auth/me \
   -H "Authorization: Bearer REPLACE_WITH_TOKEN"
 ```
 
+Create a public Hosted Zone:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/hosted-zones \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "example.com",
+    "comment": "Demo public zone",
+    "zone_type": "PUBLIC"
+  }'
+```
+
+The name is stored as `example.com.`. Public zones receive locally generated,
+persisted NS and SOA system records; they are mock data and do not publish or
+delegate real DNS.
+
+Search and filter the current user's zones:
+
+```bash
+curl "http://localhost:8000/api/v1/hosted-zones?search=example&zone_type=PUBLIC&page=1&page_size=10&sort_by=name&sort_order=asc" \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN"
+```
+
 In another shell, start the frontend:
 
 ```bash
@@ -185,14 +214,21 @@ Implemented:
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
+- `GET /api/v1/hosted-zones`
+- `POST /api/v1/hosted-zones`
+- `GET /api/v1/hosted-zones/{zone_id}`
+- `PATCH /api/v1/hosted-zones/{zone_id}`
+- `DELETE /api/v1/hosted-zones/{zone_id}`
 
 The implemented and planned API is documented in the
 [API contract](docs/api-contract.md).
 
 ## Current limitations
 
-- Hosted zones and DNS records cannot yet be created or managed.
+- General DNS Record CRUD is not implemented; only automatic public-zone NS and
+  SOA system records exist.
 - The frontend has no authentication flow and remains a development notice.
+- Hosted Zone management currently requires direct API use.
 - CI and live Vercel/Railway configuration are deferred to Case 10.
 
 ## Licence
