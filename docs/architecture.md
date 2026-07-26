@@ -75,14 +75,34 @@ increase failure modes without solving an assignment requirement.
 
 No business policy belongs directly in route handlers or React components.
 
-## Authentication direction
+## Authentication
 
-Authentication will be deliberately mocked but persistent. A user submits one of
-the assignment credentials, the backend creates an opaque session token, and the
-browser receives it in an HTTP-only cookie. The backend hashes stored tokens,
-checks expiry and ownership on protected requests, and supports logout/revocation.
-This is not AWS authentication and will not use an AWS SDK or external identity
-provider.
+Authentication is deliberately mocked but persistent. It uses public demo
+credentials and is not AWS IAM, Cognito, or another external identity system.
+
+```mermaid
+flowchart LR
+    Client[Client] -->|raw opaque bearer token| API[FastAPI dependency]
+    API -->|SHA-256 token hash| Sessions[(sessions table)]
+    Sessions -->|user_id ownership| Users[(users table)]
+```
+
+The login service normalises email, verifies the Argon2 password hash, generates
+at least 256 bits of cryptographically secure token entropy, stores only the
+token's SHA-256 hash, and returns the raw token once. Authenticated requests send
+that raw value as `Authorization: Bearer <token>`. The dependency hashes it,
+loads the session and owner in one repository operation, checks UTC expiry, and
+returns the owning User. Logout deletes only the resolved current session.
+
+Opaque sessions were selected over JWTs because they are easy to revoke, persist
+naturally in the assignment database, add little complexity, and require no
+refresh-token infrastructure. Database lookup overhead is acceptable for this
+single-instance mocked application.
+
+Repositories add, query, delete, and flush. Authentication services decide when
+to commit or roll back; API routes never manage transactions. Failed login does
+not mutate the database, successful login commits one session, and logout commits
+one deletion.
 
 ## Deployment
 

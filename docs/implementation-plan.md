@@ -24,13 +24,15 @@ Success criteria:
 
 ## Case 2: Mock authentication and persistent sessions
 
+**Status: complete.**
+
 Success criteria:
 
 - Seed or safely bootstrap documented mock users without committing secrets.
 - Implement login, logout, and current-user endpoints through router, service, and
   repository layers.
-- Store only hashed opaque session tokens, enforce expiry, and use an HTTP-only
-  cookie with environment-appropriate security attributes.
+- Store only hashed opaque session tokens, enforce expiry, and authenticate with
+  the bearer token returned once by login.
 - Add authentication dependencies and tests for valid, invalid, expired, revoked,
   and persisted sessions.
 - Keep authentication explicitly local; do not add AWS or external identity.

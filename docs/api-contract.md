@@ -1,8 +1,7 @@
-# Planned API contract
+# API contract
 
-This document is the design contract for later cases. Case 0 implements only
-`GET /`, `GET /api/v1/health`, and the generated OpenAPI document. All other
-routes below are planned and must not be treated as available yet.
+The system and authentication routes are implemented. Hosted-zone and DNS-record
+routes remain planned and must not be treated as available yet.
 
 ## General conventions
 
@@ -11,46 +10,78 @@ routes below are planned and must not be treated as available yet.
 - Identifiers: opaque UUID strings except Route53-inspired hosted-zone IDs
 - Dates: UTC ISO 8601 strings, for example `2026-07-26T12:30:00Z`
 - DNS names: returned in normalised lowercase form with a trailing dot
-- Authentication: planned HTTP-only session cookie
+- Authentication: opaque token in `Authorization: Bearer <token>`
 - Unknown JSON fields: rejected for write requests
 
 ## Authentication
 
 ### `POST /api/v1/auth/login`
 
-Planned request:
+Implemented request:
 
 ```json
 {
-  "email": "intern@example.com",
-  "password": "assignment-password"
+  "email": "demo@route53.local",
+  "password": "Route53Demo123!"
 }
 ```
 
-Planned `200 OK` response; the session token is set in a secure HTTP-only cookie:
+Email is stripped and lowercased before lookup. Email must be plausibly
+structured and no longer than 320 characters; password must be non-empty and no
+longer than 1024 characters.
+
+Implemented `200 OK` response:
 
 ```json
 {
+  "access_token": "raw-opaque-token-returned-once",
+  "token_type": "bearer",
+  "expires_at": "2026-07-27T12:30:00Z",
   "user": {
     "id": "0d79eac8-aef2-47ff-b331-d240a967ff39",
-    "email": "intern@example.com",
-    "display_name": "Route53 Operator"
-  },
-  "expires_at": "2026-07-27T12:30:00Z"
+    "name": "Route53 Demo User",
+    "email": "demo@route53.local",
+    "created_at": "2026-07-26T12:30:00Z"
+  }
 }
 ```
 
-Invalid credentials return `401`; a new session may supersede an expired cookie.
+The raw token has at least 256 bits of entropy and is returned only by this
+response. The database stores its SHA-256 hash. Each successful login creates an
+independent persistent session expiring after `SESSION_TTL_HOURS`.
+
+Unknown email and incorrect password both return:
+
+```json
+{
+  "detail": {
+    "code": "INVALID_CREDENTIALS",
+    "message": "The email or password is incorrect."
+  }
+}
+```
+
+The response status is `401 Unauthorized` with `WWW-Authenticate: Bearer`.
 
 ### `POST /api/v1/auth/logout`
 
-Revokes the current session and clears its cookie. Returns `204 No Content`.
-Calling logout without a current session remains idempotent.
+Requires a valid bearer token, deletes only that database session, and returns
+`204 No Content` with no response body. Missing, malformed, unknown, or expired
+sessions return the standard authentication error instead.
 
 ### `GET /api/v1/auth/me`
 
-Returns `200` with the current user object shown above, or `401` when the session
-is absent, expired, or revoked.
+Requires a valid bearer token and returns the user object shown above. It never
+returns `password_hash`, sessions, or ORM state.
+
+Authentication errors:
+
+- Missing header: `AUTHENTICATION_REQUIRED`
+- Incorrect scheme, malformed token, unknown token, or logged-out token:
+  `INVALID_SESSION`
+- Expired token: `SESSION_EXPIRED`; the expired row is deleted
+
+Every authentication `401` includes `WWW-Authenticate: Bearer`.
 
 ## Hosted zones
 
@@ -241,13 +272,14 @@ All expected application errors use:
 }
 ```
 
-Validation failures will use the same `detail` object with code
-`VALIDATION_ERROR`; a future optional `fields` map may identify invalid fields
-without changing `code` or `message`.
+Expected application errors use this object. Pydantic request-schema failures
+retain FastAPI's standard `422` validation-detail list so clients receive precise
+field locations and messages.
 
 Common codes include `AUTHENTICATION_REQUIRED`, `INVALID_CREDENTIALS`,
-`RESOURCE_NOT_FOUND`, `VALIDATION_ERROR`, `DUPLICATE_RESOURCE`,
-`SYSTEM_RECORD_PROTECTED`, and `INTERNAL_ERROR`.
+`INVALID_SESSION`, `SESSION_EXPIRED`, `RESOURCE_NOT_FOUND`,
+`VALIDATION_ERROR`, `DUPLICATE_RESOURCE`, `SYSTEM_RECORD_PROTECTED`, and
+`INTERNAL_ERROR`.
 
 ## HTTP status conventions
 

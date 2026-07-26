@@ -11,6 +11,9 @@ services:
       DATABASE_URL: "sqlite:////app/data/route53.db"
       FRONTEND_ORIGIN: "${FRONTEND_ORIGIN:-http://localhost:3000}"
       SESSION_TTL_HOURS: "${SESSION_TTL_HOURS:-24}"
+      DEMO_USER_NAME: "${DEMO_USER_NAME:-Route53 Demo User}"
+      DEMO_USER_EMAIL: "${DEMO_USER_EMAIL:-demo@route53.local}"
+      DEMO_USER_PASSWORD: "${DEMO_USER_PASSWORD:-Route53Demo123!}"
       LOG_LEVEL: "${LOG_LEVEL:-INFO}"
     ports:
       - "8000:8000"

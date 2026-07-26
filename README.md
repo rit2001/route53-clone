@@ -6,7 +6,7 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 1 — database models, migrations, and persistent SQLite behaviour.**
+**Case 2 — mocked authentication and persistent opaque sessions.**
 
 Available now:
 
@@ -16,12 +16,15 @@ Available now:
 - Typed User, Session, HostedZone, and DNSRecord persistence models
 - Deterministic constraints, indexes, enum checks, and database cascade deletes
 - Alembic revision `67a8ad885a32` for the complete core schema
-- Backend endpoint, persistence, constraint, cascade, and migration tests
+- Argon2 password hashing and persistent hashed opaque bearer sessions
+- Login, logout, current-user, and reusable protected-route dependencies
+- Idempotent, environment-configured demo-user seed command
+- Backend API, security, seed, persistence, cascade, and migration tests
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-Hosted zone CRUD, record CRUD, authentication behaviour, repositories, and
-services are planned but are not implemented yet.
+Hosted zone and DNS record CRUD remain planned but are not implemented yet. The
+frontend login page is also deferred to Case 5.
 
 ## Planned features
 
@@ -40,7 +43,7 @@ acceptance criteria.
 | Area | Foundation |
 | --- | --- |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, ESLint, npm |
-| Backend | Python, FastAPI, Pydantic Settings, SQLAlchemy 2.x, Alembic |
+| Backend | Python, FastAPI, Pydantic Settings, pwdlib/Argon2, SQLAlchemy, Alembic |
 | Testing | pytest, HTTPX ASGI transport |
 | Database | SQLite |
 | Deployment target | Vercel frontend, Railway backend and persistent volume |
@@ -82,12 +85,53 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -r requirements-dev.txt
 alembic upgrade head
+python -m app.seed
 uvicorn app.main:app --reload
 ```
 
 The API is available at `http://localhost:8000`, its docs at
 `http://localhost:8000/docs`, and health at
 `http://localhost:8000/api/v1/health`.
+
+## Mocked demo authentication
+
+The public development credentials are:
+
+```text
+Email: demo@route53.local
+Password: Route53Demo123!
+```
+
+They are intentionally mocked credentials, not production secrets. Override the
+`DEMO_USER_*` environment variables for a deployed demonstration, migrate the
+database, and seed once:
+
+```bash
+cd backend
+source .venv/bin/activate
+alembic upgrade head
+python -m app.seed
+```
+
+The seed command is idempotent and will not reset an existing user's password.
+
+Log in:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "demo@route53.local",
+    "password": "Route53Demo123!"
+  }'
+```
+
+Use the returned opaque token without committing it:
+
+```bash
+curl http://localhost:8000/api/v1/auth/me \
+  -H "Authorization: Bearer REPLACE_WITH_TOKEN"
+```
 
 In another shell, start the frontend:
 
@@ -138,16 +182,17 @@ Implemented:
 
 - `GET /`
 - `GET /api/v1/health`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
 
-The planned but unimplemented API is documented in the
+The implemented and planned API is documented in the
 [API contract](docs/api-contract.md).
 
 ## Current limitations
 
-- Authentication workflows and session lifecycle logic are not implemented.
 - Hosted zones and DNS records cannot yet be created or managed.
-- No demo users or data are seeded.
-- The frontend is a minimal development notice, not the final console.
+- The frontend has no authentication flow and remains a development notice.
 - CI and live Vercel/Railway configuration are deferred to Case 10.
 
 ## Licence

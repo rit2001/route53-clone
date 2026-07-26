@@ -16,6 +16,21 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./route53.db"
     frontend_origin: str = "http://localhost:3000"
     session_ttl_hours: int = Field(default=24, gt=0)
+    demo_user_name: str = Field(
+        default="Route53 Demo User",
+        min_length=1,
+        max_length=255,
+    )
+    demo_user_email: str = Field(
+        default="demo@route53.local",
+        min_length=3,
+        max_length=320,
+    )
+    demo_user_password: str = Field(
+        default="Route53Demo123!",
+        min_length=1,
+        max_length=1024,
+    )
     log_level: str = "INFO"
 
     model_config = SettingsConfigDict(

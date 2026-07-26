@@ -119,9 +119,9 @@ Constraints and indexes:
 - Unique constraint `uq_sessions_token_hash`
 - Indexes `ix_sessions_token_hash` and `ix_sessions_expires_at`
 
-Only a future hash belongs in `token_hash`; raw session tokens must never be
-stored. Session creation, hashing, validation, revocation, and cleanup are outside
-Case 1.
+Only a SHA-256 hash of the cryptographically random token belongs in
+`token_hash`; raw session tokens are never persisted. Case 2 implements creation,
+lookup, UTC expiration, detected-expiry cleanup, and current-session deletion.
 
 ## `hosted_zones`
 
@@ -218,7 +218,6 @@ Ownership is rooted at `User -> HostedZone`; DNSRecord inherits ownership only
 through its parent zone. Future queries must scope record access through the
 authenticated user's zone and must never trust a client-supplied user ID.
 
-The schema supplies integrity, not business workflows. Future services will own
-transaction boundaries for zone creation plus system records, zone deletion, and
-record-set mutations. Case 1 intentionally contains no repositories, services,
-API schemas, authentication behaviour, or CRUD routes.
+The schema supplies integrity, not business workflows. The authentication service
+owns session transaction boundaries. Future services will own zone creation plus
+system records, zone deletion, and record-set mutations.
