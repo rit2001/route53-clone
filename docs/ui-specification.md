@@ -18,18 +18,51 @@ console, not a marketing dashboard.
 
 Copied AWS logos, screenshots, or proprietary assets are prohibited.
 
+## Implemented Case 5 foundation
+
+The frontend now exposes:
+
+- `/login`
+- `/route53/dashboard`
+- `/route53/hosted-zones`
+- `/route53/traffic-policies`
+- `/route53/health-checks`
+- `/route53/resolver`
+- `/route53/profiles`
+
+The root route selects login or dashboard after client-side session restoration,
+and `/route53` selects the dashboard. The Route 53 routes are protected by a
+client gate because the mocked bearer token is intentionally browser-local and
+unavailable to server middleware. Protected content is not rendered before
+authentication finishes. Traffic policies, health checks, resolver, and profiles
+are honest “Coming soon” surfaces; Hosted zones identifies Case 6 without
+fabricating data.
+
+Implemented visual tokens include a charcoal global header, white sidebar and
+surfaces, neutral-grey page, thin grey borders, compact text, blue links,
+restrained orange actions, a red danger treatment, an accessible blue focus ring,
+three-pixel radii, and minimal panel/menu shadows. Tokens live in `globals.css`;
+components use semantic variables rather than claiming exact AWS branding.
+
 ## Global header
 
-The 44-pixel-class dark header identifies Route53 Clone, offers a skip link,
-shows environment context when useful, and exposes the mocked user's compact
-account/logout menu. It remains visually subordinate to page tasks.
+The implemented 44-pixel dark header identifies the original “Cloud Console” and
+“Route 53 Clone” marks without an AWS logo. It includes a `Mock` context badge, a
+`Global` service indicator, the demo user's compact account menu, and sign-out.
+The menu uses buttons, explicit expanded state, named menu semantics, outside
+click handling, and Escape dismissal. A keyboard-visible skip link targets the
+main content.
 
 ## Service sidebar
 
-The light sidebar contains Overview, Hosted zones, and clearly labelled
-non-functional placeholder destinations for future Route53-like areas. Active and
-hover states use borders/backgrounds rather than motion. On small screens it
-becomes an accessible disclosure menu.
+The light sidebar groups Dashboard and Hosted zones under Route 53, Traffic
+policies and Health checks under Traffic management, and Resolver and Profiles
+under Network services. Active links expose `aria-current="page"` and use a
+border/background rather than motion. At widths below the desktop breakpoint it
+becomes a labelled overlay drawer. The header button opens it, Escape or either
+close control dismisses it, opening transfers focus to its close button, and
+closing returns focus to the opener where practical. Navigation selection closes
+the drawer.
 
 ## Breadcrumbs
 
@@ -37,6 +70,58 @@ Every workflow below the overview shows text breadcrumbs between the service
 navigation and page heading. Zone details include the zone name. Record creation
 includes Hosted zones, the zone, Records, and Create record. Links remain blue;
 the current page is plain text with `aria-current`.
+
+The Case 5 `Breadcrumbs` component accepts data rather than deriving a hardcoded
+page list, so zone and record details can add nested items in Cases 6 and 7.
+
+## Page headers and placeholder surfaces
+
+The reusable operational page header supports title, compact description,
+breadcrumbs, actions, and secondary content. It deliberately has no hero
+treatment. The dashboard provides an honest mocked-DNS notice and getting-started
+links without fabricated resource metrics. A reusable placeholder gives each
+out-of-scope service its own description, a small `Coming soon` badge, and no
+fake controls.
+
+## Login and session restoration
+
+The login view uses React Hook Form and Zod for bounded email/password validation.
+It provides labelled fields, meaningful autocomplete values, Enter submission,
+password visibility control, busy state, an inline semantic error alert, and a
+button that fills—but never submits—the public demo credentials.
+
+On login, the typed client stores only the opaque token and ISO expiry in
+`route53_clone_session`. On startup, expired or malformed local data is removed
+before any request; otherwise `/auth/me` validates the token and restores the user
+in memory. Authentication status stays `loading` until that decision completes.
+Invalid backend sessions clear local state. Logout attempts backend revocation,
+then always clears local state and TanStack Query caches even after a network
+failure.
+
+Local storage is a conscious mocked-assignment compromise, not guidance for
+production credentials: scripts running in the origin can read it. The public
+demo password and token are never stored together, credentials are not logged,
+and a security-sensitive production application would reconsider HTTP-only
+cookie sessions and the wider browser threat model.
+
+The login `next` parameter accepts only an internal path, rejects protocol-relative
+or malformed values and `/login`, and falls back to `/route53/dashboard`.
+
+## Loading and error foundation
+
+Session restoration uses a full-page state shaped like the final console: compact
+dark header, desktop sidebar silhouette, bordered status surface, accessible
+live status, and reduced-motion-aware spinner. Buttons reuse the same compact
+spinner. The error alert uses `role="alert"`, safe backend messages, and an
+optional retry action; important form failures are never toast-only.
+
+## Accessibility decisions
+
+Case 5 includes semantic header/main/aside/navigation landmarks, labelled
+navigation regions, breadcrumb navigation, `aria-current`, visible global focus
+styles, a skip link, field/error associations, native buttons for every action,
+keyboard-reachable menus, Escape dismissal, and reduced-motion overrides.
+Component tests query by accessible roles and names to protect these contracts.
 
 ## Hosted Zones table
 

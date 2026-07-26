@@ -6,11 +6,19 @@ It is a learning application: it will not connect to AWS or publish real DNS.
 
 ## Current status
 
-**Case 4 — validated DNS Record backend CRUD.**
+**Case 5 — Route 53 application shell and mocked frontend authentication.**
 
 Available now:
 
-- Next.js App Router foundation with strict TypeScript, Tailwind CSS, and ESLint
+- Next.js App Router shell with strict TypeScript, Tailwind CSS, and ESLint
+- Route 53-inspired dark utility header, service sidebar, breadcrumbs, dashboard,
+  responsive mobile drawer, and honest placeholder sections
+- Mock login, opaque-token session restoration, protected routing, and logout
+- Typed native-fetch API client, standard backend-error parsing, and local session
+  storage with expiry handling
+- TanStack Query provider plus React Hook Form and Zod form infrastructure
+- Vitest and React Testing Library coverage for API, authentication, login, route
+  protection, storage, and navigation foundations
 - FastAPI application factory, versioned routing, CORS, and health endpoints
 - SQLAlchemy session/engine foundation with SQLite foreign keys enabled
 - Typed User, Session, HostedZone, and DNSRecord persistence models
@@ -34,12 +42,10 @@ Available now:
 - Local Dockerfiles and Docker Compose configuration
 - Architecture, API, data-model, UI, and staged implementation contracts
 
-Frontend authentication and Hosted Zone/DNS Record workflows remain deferred to
-Cases 5–7.
+Hosted Zone and DNS Record frontend workflows remain deferred to Cases 6 and 7.
 
 ## Remaining planned work
 
-- Mocked frontend authentication and session restoration
 - Route53-inspired Hosted Zone and DNS Record tables and forms
 - URL-backed frontend search, filters, sorting, and pagination
 - Confirmation dialogs, toasts, and complete loading/error/empty states
@@ -52,14 +58,15 @@ acceptance criteria.
 
 | Area | Foundation |
 | --- | --- |
-| Frontend | Next.js, React, TypeScript, Tailwind CSS, ESLint, npm |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS, TanStack Query, React Hook Form, Zod, ESLint, npm |
 | Backend | Python, FastAPI, Pydantic Settings, pwdlib/Argon2, SQLAlchemy, Alembic |
-| Testing | pytest, HTTPX ASGI transport |
+| Testing | pytest, HTTPX ASGI transport, Vitest, React Testing Library |
 | Database | SQLite |
 | Deployment target | Vercel frontend, Railway backend and persistent volume |
 
-TanStack Query, React Hook Form, and Zod are intentionally deferred until their
-owning frontend cases.
+TanStack Query owns the frontend server-state foundation. React Hook Form and Zod
+own form state and client validation. React Context is restricted to the mocked
+authentication session.
 
 ## Repository layout
 
@@ -86,6 +93,11 @@ Create local environment settings:
 ```bash
 cp .env.example .env
 ```
+
+The frontend reads `NEXT_PUBLIC_API_URL`, which must be an absolute HTTP(S) URL
+ending in `/api/v1`. Local development defaults to
+`http://localhost:8000/api/v1`. Set the deployed API URL as a public environment
+variable in Vercel; never place secrets in `NEXT_PUBLIC_*`.
 
 Start the backend:
 
@@ -220,7 +232,23 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000/login` and use the public demo credentials. The root
+route chooses login or dashboard after restoring the browser session.
+
+Implemented frontend routes:
+
+- `/login`
+- `/route53/dashboard`
+- `/route53/hosted-zones` (Case 6 handoff state)
+- `/route53/traffic-policies` (placeholder)
+- `/route53/health-checks` (placeholder)
+- `/route53/resolver` (placeholder)
+- `/route53/profiles` (placeholder)
+
+The opaque token and expiry are stored under `route53_clone_session`; passwords
+are never persisted. This local-storage design is acceptable only for the public,
+mocked assignment account. A security-sensitive production application would
+reassess the browser threat model and session transport.
 
 ## Commands
 
@@ -230,6 +258,7 @@ Frontend quality checks:
 cd frontend
 npm run lint
 npm run typecheck
+npm run test
 npm run build
 ```
 
@@ -280,8 +309,10 @@ The implemented and planned API is documented in the
 
 ## Current limitations
 
-- The frontend has no authentication flow and remains a development notice.
-- Hosted Zone and DNS Record management currently require direct API use.
+- The frontend authenticates and provides the operational shell, but Hosted Zone
+  and DNS Record management still require direct API use until Cases 6 and 7.
+- Traffic policies, health checks, resolver, and profiles are explicit,
+  non-functional placeholders.
 - The application stores mocked control-plane data and does not publish or
   resolve real DNS.
 - Alias targets and non-simple routing policies are outside the assignment.

@@ -25,8 +25,8 @@ flowchart LR
 ### Frontend
 
 The frontend owns rendering, accessibility, navigation, URL-derived list state,
-form interaction, and displaying API outcomes. TanStack Query will own server
-state. React Hook Form and Zod will own form state and client-side validation.
+form interaction, and displaying API outcomes. TanStack Query owns server-state
+infrastructure. React Hook Form and Zod own form state and client-side validation.
 URL search parameters will own filtering, sorting, search, and pagination.
 React Context is reserved for the mocked authentication session; modal visibility
 and row selection remain local component state.
@@ -103,6 +103,36 @@ Repositories add, query, delete, and flush. Authentication services decide when
 to commit or roll back; API routes never manage transactions. Failed login does
 not mutate the database, successful login commits one session, and logout commits
 one deletion.
+
+### Frontend session flow
+
+The browser implements authentication as a narrowly scoped React Context. It
+uses the typed API client directly for authentication while TanStack Query
+remains available for domain server state in later workflows.
+
+```mermaid
+flowchart TD
+    Form[Login form] -->|POST /auth/login| API[FastAPI]
+    API -->|opaque bearer token + expiry| Storage[Local mocked-session storage]
+    Storage -->|browser startup| Me[GET /auth/me validation]
+    Me -->|valid user| Shell[Protected Route 53 shell]
+    Me -->|invalid or expired| Clear[Clear local session and return to login]
+    Shell -->|POST /auth/logout| Clear
+```
+
+Only the raw token and expiry are stored under `route53_clone_session`; neither
+the password nor user profile is persisted. The provider first rejects locally
+expired data, then restores user state only after `/auth/me` succeeds. Backend
+authentication failures can notify the provider so future authenticated clients
+share the same clearing path. Logout clears the TanStack Query cache and local
+state even if the backend is unreachable.
+
+Local storage is acceptable here because this is an explicitly mocked,
+time-boxed demonstration using public credentials. JavaScript can read local
+storage, so a production-sensitive identity system would reassess the threat
+model and normally use hardened, secure, HTTP-only cookie sessions plus CSRF and
+content-security controls. This assignment deliberately does not represent that
+choice as production authentication.
 
 ## Hosted-zone lifecycle
 

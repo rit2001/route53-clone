@@ -5,11 +5,11 @@ health endpoints, database plumbing, a minimal frontend, containers, tests, and
 documentation. It deliberately contains no business entities, authentication, or
 CRUD workflow.
 
-P0 cases must be completed and stable before optional work. Later frontend cases
-will add TanStack Query for server state and cache invalidation, React Hook Form
-plus Zod for forms, and a lightweight accessible toast implementation. Those
-packages are planned rather than installed in Case 0 because no current code uses
-them. Redux and Zustand are outside the architecture.
+P0 cases must be completed and stable before optional work. Case 5 added TanStack
+Query for server-state infrastructure and React Hook Form plus Zod for forms.
+Later workflow cases will use those foundations for domain data and may add a
+lightweight accessible toast implementation when mutations need it. Redux and
+Zustand remain outside the architecture.
 
 ## Case 1: Database models, migrations and persistence
 
@@ -66,6 +66,8 @@ Success criteria:
 
 ## Case 5: AWS-style application shell and frontend authentication
 
+**Status: complete.**
+
 Success criteria:
 
 - Build the original dark header, light sidebar, page frame, breadcrumbs, and
@@ -79,9 +81,9 @@ Success criteria:
 
 Success criteria:
 
-- Add TanStack Query and implement hosted-zone list, create, detail, edit-comment,
+- Use TanStack Query to implement hosted-zone list, create, detail, edit-comment,
   and delete workflows.
-- Add React Hook Form and Zod with backend-error mapping.
+- Use React Hook Form and Zod with backend-error mapping.
 - Provide empty, loading, refreshing, error, success, and confirmation states.
 - Invalidate or update caches intentionally after mutations.
 - Match the API contract and dense operational visual direction.
